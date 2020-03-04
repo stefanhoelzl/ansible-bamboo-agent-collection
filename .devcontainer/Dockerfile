@@ -19,7 +19,7 @@ ARG USER_GID=$USER_UID
 # Uncomment the following COPY line and the corresponding lines in the `RUN` command if you wish to
 # include your requirements in the image itself. It is suggested that you only do this if your
 # requirements rarely (if ever) change.
-# COPY requirements.txt /tmp/pip-tmp/
+COPY dev-requirements.txt /tmp/pip-tmp/
 
 # Configure apt and install packages
 RUN apt-get update \
@@ -32,8 +32,8 @@ RUN apt-get update \
     && pip --disable-pip-version-check --no-cache-dir install pylint \
     #
     # Update Python environment based on requirements.txt
-    # && pip --disable-pip-version-check --no-cache-dir install -r /tmp/pip-tmp/requirements.txt \
-    # && rm -rf /tmp/pip-tmp \
+    && pip --disable-pip-version-check --no-cache-dir install -r /tmp/pip-tmp/dev-requirements.txt \
+    && rm -rf /tmp/pip-tmp \
     #
     # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
     && groupadd --gid $USER_GID $USERNAME \
@@ -42,13 +42,14 @@ RUN apt-get update \
     && apt-get install -y sudo \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
     && chmod 0440 /etc/sudoers.d/$USERNAME \
+    # 
+    # custom packages
+    && apt-get install -y nano \
     #
     # Clean up
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
-
-RUN pip install ansible==2.9.5 black==19.10b0
 
 # Switch back to dialog for any ad-hoc use of apt-get
 ENV DEBIAN_FRONTEND=dialog
