@@ -1,0 +1,33 @@
+---
+- name: Automated tests against real bamboo server
+  hosts: bamboo-agent
+  vars:
+    bamboo_server: "http://bamboo-server:8085"
+  tasks:
+  - name: Query pending agents
+    local_action: uri
+    args:
+        url: "http://bamboo-server:8085/rest/api/latest/agent/authentication?pending=true"
+        method: GET
+        force_basic_auth: yes
+        user: "admin"
+        password: "admin"
+        status_code: 200
+        dest: "/project/results/pending.json"
+  - name: Register bamboo agent
+    bamboo-agent-configuration:
+      host: "{{ bamboo_server }}"
+      home: "/home/bamboo/bamboo-agent-home"
+      authentication:
+        user: "admin"
+        password: "admin"
+  - name: Query registered agents
+    local_action: uri
+    args:
+        url: "http://bamboo-server:8085/rest/api/latest/agent/"
+        method: GET
+        force_basic_auth: yes
+        user: "admin"
+        password: "admin"
+        status_code: 200
+        dest: "/project/results/registration.json"

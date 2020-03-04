@@ -1,0 +1,46 @@
+version: '2.2' # version 2.2 required for support of init option
+services:
+  server:
+    image: atlassian/bamboo-server:6.9.2
+    init: true
+    hostname: bamboo-server
+    ports:
+    - "8085:8085"
+    volumes:
+    - ./server/data:/var/atlassian/application-data/bamboo
+    - ./server/libs:/libs
+    environment:
+      LD_PRELOAD: /libs/libfaketime.so.1
+      FAKETIME: "@2020-03-01 12:00:00"
+      FAKETIME_DONT_FAKE_MONOTONIC: 1
+    networks:
+      internal:
+        aliases:
+          - bamboo-server
+        ipv4_address: 172.1.0.100
+      # enable default network to access UI via http://localhost:8085
+      default:
+  agent:
+    build: agent
+    init: true
+    entrypoint: ./runAgent.sh http://172.1.0.100:8085
+    hostname: bamboo-agent
+    networks:
+      internal:
+        aliases:
+        - bamboo-agent
+        ipv4_address: 172.1.0.101
+  ansible:
+    build: ./ansible
+    command: ["python", "wait-for-http.py", "http://bamboo-server:8085", "ansible-playbook", "playbook.yml"]
+    volumes:
+    - ./ansible/project:/project
+    networks:
+      internal:
+        ipv4_address: 172.1.0.99
+networks:
+  internal:
+    internal: true
+    ipam:
+      config:
+      - subnet: 172.1.0.0/24
