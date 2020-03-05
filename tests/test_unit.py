@@ -15,6 +15,9 @@ from .proxy import (
     Method,
     HttpRequestHandler,
     timeout,
+    ServerConnectionError,
+    MissingUuid,
+    SelfRecoverableBambooAgentError,
 )
 
 
@@ -24,14 +27,21 @@ class TestTimeout(TestCase):
 
     def test_raise(self):
         self.assertRaises(
-            TimeoutError, partial(timeout, Mock(side_effect=TimeoutError), timeout=0)
+            TimeoutError,
+            partial(
+                timeout, Mock(side_effect=SelfRecoverableBambooAgentError), timeout=0
+            ),
         )
 
     def test_retry(self):
-        self.assertTrue(timeout(Mock(side_effect=[TimeoutError, True]), timeout=0.1))
+        self.assertTrue(
+            timeout(
+                Mock(side_effect=[SelfRecoverableBambooAgentError, True]), timeout=0.1
+            )
+        )
 
     def test_interval(self):
-        mock = Mock(side_effect=[TimeoutError] * 3)
+        mock = Mock(side_effect=[SelfRecoverableBambooAgentError] * 3)
         self.assertRaises(
             TimeoutError, partial(timeout, mock, timeout=0.02, interval=0.01)
         )
@@ -140,14 +150,15 @@ class TestRequest(RequestTestCase):
         response = Response(status_code=204)
         rh = MockRequestHandler(responses=[response])
         agent = make_bamboo_agent(rh)
-        self.assertRaises(ConnectionError, lambda: agent.request(Request("/")))
+        self.assertRaises(ServerConnectionError, lambda: agent.request(Request("/")))
 
     def test_expect_custom_response_code(self):
         response = Response(status_code=200)
         rh = MockRequestHandler(responses=[response])
         agent = make_bamboo_agent(rh)
         self.assertRaises(
-            ConnectionError, lambda: agent.request(Request("/"), response_code=204)
+            ServerConnectionError,
+            lambda: agent.request(Request("/"), response_code=204),
         )
 
 
@@ -242,7 +253,7 @@ class TestBambooAgent(RequestTestCase):
     def test_authenticate_no_uuid(self):
         with BambooHome().temp() as home:
             agent = make_bamboo_agent(home=home)
-            self.assertRaises(EnvironmentError, agent.authenticate)
+            self.assertRaises(MissingUuid, agent.authenticate)
 
 
 def make_bamboo_agent_controller(

@@ -125,6 +125,30 @@ ArgumentSpec = dict(
 )
 
 
+class BambooAgentError(Exception):
+    pass
+
+
+class RecoverableBambooAgentError(Exception):
+    pass
+
+
+class SelfRecoverableBambooAgentError(RecoverableBambooAgentError):
+    pass
+
+
+class ServerConnectionError(RecoverableBambooAgentError):
+    pass
+
+
+class AgentConfigurationError(RecoverableBambooAgentError):
+    pass
+
+
+class MissingUuid(SelfRecoverableBambooAgentError):
+    pass
+
+
 class Method(Enum):
     Get = "GET"
     Post = "POST"
@@ -212,9 +236,9 @@ def timeout(query, timeout: float, interval: float = 1):
     while True:
         try:
             return query()
-        except TimeoutError:
+        except SelfRecoverableBambooAgentError:
             if time.time() > start + timeout:
-                raise
+                raise TimeoutError()
         time.sleep(interval)
 
 
@@ -235,7 +259,7 @@ class BambooAgent:
     def request(self, request: Request, response_code: int = 200) -> Response:
         response = self.request_handler(request)
         if response.status_code != response_code:
-            raise ConnectionError(f"{response.status_code}: {request.path}")
+            raise ServerConnectionError(f"{response.status_code}: {request.path}")
         return response
 
     def uuid(self) -> Optional[str]:
@@ -283,7 +307,7 @@ class BambooAgent:
     def authenticate(self):
         uuid = self.uuid()
         if uuid is None:
-            raise EnvironmentError()
+            raise MissingUuid()
         self.request(
             Request(
                 f"/rest/api/latest/agent/authentication/{uuid}", method=Method.Put,
@@ -306,7 +330,7 @@ class BambooAgentController:
 
             def available():
                 if not self.agent.available():
-                    raise TimeoutError()
+                    raise SelfRecoverableBambooAgentError()
 
             timeout(available, timeout=self.timeouts.get("authentication", 240.0))
             self.changed = True
