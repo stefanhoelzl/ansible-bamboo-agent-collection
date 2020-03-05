@@ -218,21 +218,25 @@ def timeout(query, timeout: float, interval: float = 1):
         time.sleep(interval)
 
 
-class BambooAgentConfiguration:
+class BambooAgent:
     def __init__(
         self,
         host: str,
         home: str,
         authentication: Dict[str, str],
-        timeouts: Dict[str, float] = dict(),
         request_handler=HttpRequestHandler,
     ):
         self.home = home
-        self.timeouts = timeouts or dict()
         self.changed = False
         self.request_handler = request_handler(
             host=host, auth=(authentication["user"], authentication["password"])
         )
+
+    def request(self, request: Request, response_code: int = 200) -> Response:
+        response = self.request_handler(request)
+        if response.status_code != response_code:
+            raise ConnectionError(f"{response.status_code}: {request.path}")
+        return response
 
     def uuid(self) -> Optional[str]:
         config_file = Path(self.home, "bamboo-agent.cfg.xml")
@@ -255,50 +259,69 @@ class BambooAgentConfiguration:
                 return int(match.group(1))
         return None
 
-    def authentication_pending(self, uuid: str) -> bool:
+    def authenticated(self) -> bool:
+        uuid = self.uuid()
+        if uuid is None:
+            return False
         pending_agents = self.request(
             Request("/rest/api/latest/agent/authentication?pending=true")
         ).content
         uuid = next(filter(lambda pa: pa["uuid"] == uuid, pending_agents), {},).get(
             "uuid", None
         )
-        return uuid is not None
+        if uuid is None:
+            return self.available()
+        return False
+
+    def available(self) -> bool:
+        aid = self.id()
+        if aid is None:
+            return False
+        agents = self.request(Request("/rest/api/latest/agent/")).content
+        return any(agent for agent in agents if agent["id"] == aid)
+
+    def authenticate(self):
+        uuid = self.uuid()
+        if uuid is None:
+            raise EnvironmentError()
+        self.request(
+            Request(
+                f"/rest/api/latest/agent/authentication/{uuid}", method=Method.Put,
+            ),
+            response_code=204,
+        )
+
+
+class BambooAgentController:
+    def __init__(
+        self, agent: BambooAgent, timeouts: Dict[str, float] = dict(),
+    ):
+        self.agent = agent
+        self.timeouts = timeouts or dict()
+        self.changed = False
 
     def register(self):
-        uuid = self.uuid()
-        if self.authentication_pending(uuid):
-            self.request(
-                Request(
-                    f"/rest/api/latest/agent/authentication/{uuid}", method=Method.Put
-                ),
-                response_code=204,
-            )
+        if not self.agent.authenticated():
+            self.agent.authenticate()
 
-            def agent_available():
-                agent_id = self.id()
-                if agent_id is None:
-                    raise TimeoutError("no id in config file found")
-                else:
-                    agents = self.request(Request("/rest/api/latest/agent/")).content
-                    agent_found = any(
-                        agent for agent in agents if agent["id"] == agent_id
-                    )
-                    if not agent_found:
-                        raise TimeoutError("agent id not known by host")
+            def available():
+                if not self.agent.available():
+                    raise TimeoutError()
 
-            timeout(agent_available, timeout=self.timeouts.get("authentication", 240.0))
+            timeout(available, timeout=self.timeouts.get("authentication", 240.0))
             self.changed = True
-
-    def request(self, request: Request, response_code: int = 200) -> Response:
-        response = self.request_handler(request)
-        if response.status_code != response_code:
-            raise ConnectionError(f"{response.status_code}: {request.path}")
-        return response
 
 
 def main():
     module = AnsibleModule(argument_spec=ArgumentSpec)
-    bac = BambooAgentConfiguration(**module.params)
+    bac = BambooAgentController(
+        agent=BambooAgent(
+            host=module.params.pop("host"),
+            home=module.params.pop("home"),
+            authentication=module.params.pop("authentication"),
+        ),
+        **module.params,
+    )
     bac.register()
     module.exit_json(changed=bac.changed)
 

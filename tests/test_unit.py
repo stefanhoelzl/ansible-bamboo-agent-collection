@@ -2,13 +2,14 @@ import time
 import ssl
 from functools import partial
 from unittest import TestCase
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 from typing import List, Optional
 from contextlib import contextmanager
 from tests import RequestTestCase, IpAddress, BambooHome
 from . import templates
 from .proxy import (
-    BambooAgentConfiguration,
+    BambooAgentController,
+    BambooAgent,
     Request,
     Response,
     Method,
@@ -114,17 +115,15 @@ class MockRequestHandler:
         return response
 
 
-def make_bamboo_agent_configuration(
+def make_bamboo_agent(
     request_handler: Optional[MockRequestHandler] = None,
     home: Optional[BambooHome] = None,
-    **kwargs
-) -> BambooAgentConfiguration:
-    return BambooAgentConfiguration(
-        request_handler=request_handler or MockRequestHandler(),
+) -> BambooAgentController:
+    return BambooAgent(
         host="http://localhost",
         home=home or "",
         authentication=dict(user="", password=""),
-        **kwargs,
+        request_handler=request_handler or MockRequestHandler(),
     )
 
 
@@ -133,162 +132,168 @@ class TestRequest(RequestTestCase):
         response = Response(content=b"[]")
         request = Request("/my/path")
         rh = MockRequestHandler(responses=[response])
-        bac = make_bamboo_agent_configuration(rh)
-        self.assertEqual(bac.request(request), response)
+        agent = make_bamboo_agent(rh)
+        self.assertEqual(agent.request(request), response)
         self.assert_requests(rh.requests, request)
 
     def test_expect_default_response_code(self):
         response = Response(status_code=204)
         rh = MockRequestHandler(responses=[response])
-        bac = make_bamboo_agent_configuration(rh)
-        self.assertRaises(ConnectionError, lambda: bac.request(Request("/")))
+        agent = make_bamboo_agent(rh)
+        self.assertRaises(ConnectionError, lambda: agent.request(Request("/")))
 
     def test_expect_custom_response_code(self):
         response = Response(status_code=200)
         rh = MockRequestHandler(responses=[response])
-        bac = make_bamboo_agent_configuration(rh)
+        agent = make_bamboo_agent(rh)
         self.assertRaises(
-            ConnectionError, lambda: bac.request(Request("/"), response_code=204)
+            ConnectionError, lambda: agent.request(Request("/"), response_code=204)
         )
 
 
-class TestData(RequestTestCase):
+class TestBambooAgent(RequestTestCase):
     def test_uuid_is_none(self):
         with BambooHome().temp() as home:
-            bac = make_bamboo_agent_configuration(home=home)
-            self.assertIsNone(bac.uuid())
+            agent = make_bamboo_agent(home=home)
+            self.assertIsNone(agent.uuid())
 
     def test_uuid_from_temp_properties(self):
         with BambooHome().temp_uuid("0000").temp() as home:
-            bac = make_bamboo_agent_configuration(home=home)
-            self.assertEqual(bac.uuid(), "0000")
+            agent = make_bamboo_agent(home=home)
+            self.assertEqual(agent.uuid(), "0000")
 
     def test_uuid_config(self):
         with BambooHome().config(uuid="0000").temp() as home:
-            bac = make_bamboo_agent_configuration(home=home)
-            self.assertEqual(bac.uuid(), "0000")
+            agent = make_bamboo_agent(home=home)
+            self.assertEqual(agent.uuid(), "0000")
 
     def test_uuid_prefer_from_config(self):
         with BambooHome().temp_uuid("0000").config(uuid="1111", aid=0).temp() as home:
-            bac = make_bamboo_agent_configuration(home=home)
-            self.assertEqual(bac.uuid(), "1111")
+            agent = make_bamboo_agent(home=home)
+            self.assertEqual(agent.uuid(), "1111")
 
     def test_id_is_none(self):
         with BambooHome().temp() as home:
-            bac = make_bamboo_agent_configuration(home=home)
-            self.assertIsNone(bac.id())
+            agent = make_bamboo_agent(home=home)
+            self.assertIsNone(agent.id())
 
     def test_id_config(self):
-        with BambooHome().config(aid=1234).temp() as home:
-            bac = make_bamboo_agent_configuration(home=home)
-            self.assertEqual(bac.id(), 1234)
+        with BambooHome().config(uuid="0000", aid=1234).temp() as home:
+            agent = make_bamboo_agent(home=home)
+            self.assertEqual(agent.id(), 1234)
 
-    def test_pending(self):
-        bac = make_bamboo_agent_configuration(
-            request_handler=MockRequestHandler(
-                responses=[Response([dict(uuid="0000")])]
+    def test_not_authenticated_pending(self):
+        with BambooHome().temp_uuid(uuid="0000").temp() as home:
+            agent = make_bamboo_agent(
+                home=home,
+                request_handler=MockRequestHandler(
+                    responses=[Response([dict(uuid="0000")])]
+                ),
             )
-        )
-        self.assertTrue(bac.authentication_pending(uuid="0000"))
+            self.assertFalse(agent.authenticated())
 
-    def test_not_pending(self):
-        bac = make_bamboo_agent_configuration(
-            request_handler=MockRequestHandler(responses=[Response([])])
-        )
-        self.assertFalse(bac.authentication_pending(uuid="0000"))
+    def test_authenticated(self):
+        with BambooHome().config(uuid="0000", aid=1234).temp() as home:
+            agent = make_bamboo_agent(
+                home=home,
+                request_handler=MockRequestHandler(
+                    responses=[Response([]), templates.Agents.response([dict(id=1234)])]
+                ),
+            )
+            self.assertTrue(agent.authenticated())
+
+    def test_authenticated_no_uuid(self):
+        with BambooHome().temp() as home:
+            agent = make_bamboo_agent(home=home,)
+            self.assertFalse(agent.authenticated())
+
+    def test_available(self):
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(
+                home=home,
+                request_handler=MockRequestHandler(
+                    responses=[templates.Agents.response([dict(id=1234)])]
+                ),
+            )
+            self.assertTrue(agent.available())
+
+    def test_not_available(self):
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(
+                home=home,
+                request_handler=MockRequestHandler(
+                    responses=[templates.Agents.response(list())]
+                ),
+            )
+            self.assertFalse(agent.available())
+
+    def test_available_no_id(self):
+        with BambooHome().temp() as home:
+            agent = make_bamboo_agent(home=home)
+            self.assertFalse(agent.available())
+
+    def test_authenticate(self):
+        rh = MockRequestHandler(responses=[templates.Authentication.response()])
+        with BambooHome().temp_uuid(uuid="0000").temp() as home:
+            agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.authenticate()
+        self.assert_requests(rh.requests, templates.Authentication.request(uuid="0000"))
+
+    def test_authenticate_no_uuid(self):
+        with BambooHome().temp() as home:
+            agent = make_bamboo_agent(home=home)
+            self.assertRaises(EnvironmentError, agent.authenticate)
+
+
+def make_bamboo_agent_controller(
+    agent: BambooAgent = None, **kwargs
+) -> BambooAgentController:
+    return BambooAgentController(agent=agent, **kwargs,)
 
 
 class TestRegistration(RequestTestCase):
     def test_skip(self):
-        rh = MockRequestHandler(responses=[Response(list())])
-        bac = make_bamboo_agent_configuration(rh)
-        bac.register()
-        self.assert_requests(rh.requests, templates.Pending.request())
-        self.assertFalse(bac.changed)
+        agent = Mock()
+        agent.authenticated.return_value = True
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.register()
+        self.assertEqual(agent.method_calls, [call.authenticated()])
+        self.assertFalse(controller.changed)
 
     def test_new_agent(self):
-        with BambooHome().config(uuid="0000").temp() as home:
-            rh = MockRequestHandler(
-                responses=[
-                    templates.Pending.response(uuid="0000"),
-                    templates.Authentication.response().action(
-                        lambda: BambooHome().config(aid=1234).create(home)
-                    ),
-                    templates.Agents.response([dict(id=1234)]),
-                ]
-            )
-            bac = make_bamboo_agent_configuration(rh, home=home)
-            bac.register()
-
-        self.assert_requests(
-            rh.requests,
-            templates.Pending.request(),
-            templates.Authentication.request(uuid="0000"),
-            templates.Agents.request(),
+        agent = Mock()
+        agent.authenticated.return_value = False
+        agent.available.return_value = True
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.register()
+        self.assertEqual(
+            agent.method_calls,
+            [call.authenticated(), call.authenticate(), call.available()],
         )
-        self.assertTrue(bac.changed)
+        self.assertTrue(controller.changed)
 
-    def test_timeout_missing_config_file(self):
-        with BambooHome().config(uuid="0000").temp() as home:
-            rh = MockRequestHandler(
-                responses=[
-                    templates.Pending.response(uuid="0000"),
-                    templates.Authentication.response(),
-                    templates.Agents.response([dict(id=1234)]),
-                ]
-            )
-            bac = make_bamboo_agent_configuration(
-                rh, home=home, timeouts=dict(authentication=0)
-            )
-            self.assertRaises(TimeoutError, bac.register)
-
-    def test_timeout_missing_id_in_response(self):
-        with BambooHome().config(uuid="0000").temp() as home:
-            rh = MockRequestHandler(
-                responses=[
-                    templates.Pending.response(uuid="0000"),
-                    templates.Authentication.response().action(
-                        lambda: BambooHome().config(aid=1234).create(home)
-                    ),
-                    templates.Agents.response([]),
-                ]
-            )
-            bac = make_bamboo_agent_configuration(
-                rh, home=home, timeouts=dict(authentication=0.0)
-            )
-            self.assertRaises(TimeoutError, bac.register)
-
-    def test_timeout_retries(self):
-        with BambooHome().config(uuid="0000").temp() as home:
-            rh = MockRequestHandler(
-                responses=[
-                    templates.Pending.response(uuid="0000"),
-                    templates.Authentication.response().action(
-                        lambda: BambooHome().config(aid=1234).create(home)
-                    ),
-                    templates.Agents.response([]),
-                    templates.Agents.response([]).action(partial(time.sleep, 0.1)),
-                ]
-            )
-            bac = make_bamboo_agent_configuration(
-                rh, home=home, timeouts=dict(authentication=0.1)
-            )
-            self.assertRaises(TimeoutError, bac.register)
-            self.assert_requests(
-                rh.requests,
-                templates.Pending.request(),
-                templates.Authentication.request(uuid="0000"),
-                templates.Agents.request(),
-                templates.Agents.request(),
-            )
-
-    def test_connection_error(self):
-        rh = MockRequestHandler(
-            responses=[
-                templates.Pending.response(uuid="0000"),
-                templates.Authentication.response(500),
-            ]
+    def test_retries(self):
+        agent = Mock()
+        agent.authenticated.return_value = False
+        agent.available.side_effect = [False, True]
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.register()
+        self.assertEqual(
+            agent.method_calls,
+            [
+                call.authenticated(),
+                call.authenticate(),
+                call.available(),
+                call.available(),
+            ],
         )
-        with BambooHome().config(uuid="0000").temp() as home:
-            bac = make_bamboo_agent_configuration(rh, home=home)
-            self.assertRaises(ConnectionError, bac.register)
+
+    def test_timeout(self):
+        agent = Mock()
+        agent.authenticated.return_value = False
+        agent.available.return_value = False
+        controller = make_bamboo_agent_controller(
+            agent=agent, timeouts=dict(authentication=0)
+        )
+        self.assertRaises(TimeoutError, controller.register)
+
