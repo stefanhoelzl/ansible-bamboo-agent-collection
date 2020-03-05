@@ -25,19 +25,9 @@ class HttpRequestHandler(BaseHTTPRequestHandler):
             setattr(cls, f"do_{method}", partialmethod(cls.do, method=method))
 
     def do(self, method: Method):
-        header = dict(**self.headers)
-        header.pop("Host")
-        header.pop("User-Agent")
-        header.pop("Accept-Encoding")
-        header.pop("Connection")
-        content_length = int(header.pop("Content-Length", 0))
+        content_length = int(self.headers.get("Content-Length", 0))
         self.Requests.append(
-            Request(
-                self.path,
-                content=self.rfile.read(content_length),
-                method=method,
-                header=header,
-            )
+            Request(self.path, content=self.rfile.read(content_length), method=method,)
         )
 
         response = self.Responses.pop(0)

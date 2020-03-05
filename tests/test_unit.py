@@ -86,15 +86,19 @@ class TestHttpRequestHandler(TestCase):
         self.assertEqual(urlopen.url, "http://host/my/path")
         self.assertEqual(urlopen.method, "GET")
         self.assertEqual(
-            urlopen.header, dict(Authorization="Basic dXNlcjpwYXNzd29yZA==")
+            urlopen.header,
+            {
+                "Authorization": "Basic dXNlcjpwYXNzd29yZA==",
+                "X-atlassian-token": "no-check",
+            },
         )
         self.assertTrue(isinstance(urlopen.context, ssl.SSLContext))
 
     def test_response_data_and_status_code(self):
         handler = HttpRequestHandler(
             "http://host/",
-            urlopen=MockUrlOpen(status_code=204, content=b"[1, 2, 3]"),
             auth=("", ""),
+            urlopen=MockUrlOpen(status_code=204, content=b"[1, 2, 3]"),
         )
         response = handler(Request("/my/path"))
 
@@ -103,7 +107,7 @@ class TestHttpRequestHandler(TestCase):
 
     def test_custom_method(self):
         urlopen = MockUrlOpen()
-        handler = HttpRequestHandler("http://host/", urlopen=urlopen, auth=("", ""))
+        handler = HttpRequestHandler("http://host/", auth=("", ""), urlopen=urlopen)
         handler(Request("/my/path", method=Method.Put))
 
         self.assertEqual(urlopen.method, "PUT")
@@ -262,7 +266,7 @@ def make_bamboo_agent_controller(
     return BambooAgentController(agent=agent, **kwargs,)
 
 
-class TestRegistration(RequestTestCase):
+class TestRegistration(TestCase):
     def test_skip(self):
         agent = Mock()
         agent.authenticated.return_value = True
@@ -307,4 +311,3 @@ class TestRegistration(RequestTestCase):
             agent=agent, timeouts=dict(authentication=0)
         )
         self.assertRaises(TimeoutError, controller.register)
-

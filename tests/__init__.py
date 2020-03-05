@@ -32,14 +32,10 @@ class RequestTestCase(unittest.TestCase):
         for index, expected in enumerate(expected_requests):
             if len(requests) <= index:
                 raise AssertionError(f"missing request ({index}): {expected}")
-            requests[index].header.pop("Authorization", None)
 
             self.assertEqual(requests[index].path, expected.path, msg=f"index: {index}")
             self.assertEqual(
                 requests[index].method, expected.method, msg=f"index: {index}"
-            )
-            self.assertEqual(
-                requests[index].header, expected.header, msg=f"index: {index}"
             )
             self.assertEqual(
                 requests[index].content, expected.content, msg=f"index: {index}"

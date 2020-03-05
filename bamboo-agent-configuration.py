@@ -182,16 +182,11 @@ class ContentContainer:
 
 class Request(ContentContainer):
     def __init__(
-        self,
-        path: str,
-        method: Method = Method.Get,
-        content: Content = None,
-        header: Header = None,
+        self, path: str, method: Method = Method.Get, content: Content = None,
     ):
         super().__init__(content)
         self.path = path
         self.method = method
-        self.header = header or dict()
 
     def __str__(self):
         return f"{self.method} {self.path}"
@@ -227,6 +222,7 @@ class HttpRequestHandler:
             .replace("\n", "")
         )
         request.add_header("Authorization", f"Basic {auth_string}")
+        request.add_header("X-Atlassian-Token", "no-check")
         with self._urlopen(request, context=ssl.SSLContext()) as response:
             return Response(response.read(), status_code=response.getcode())
 
