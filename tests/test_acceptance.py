@@ -41,7 +41,7 @@ class HttpRequestHandler(BaseHTTPRequestHandler):
         )
 
         response = self.Responses.pop(0)
-
+        response()
         self.send_response(response.status_code)
         for header, value in (response.header or {}).items():
             self.send_header(header, value)
@@ -137,8 +137,14 @@ class TestNewAgentRegistration(BambooAgentAcceptanceTest):
     ExpectedRequests = [
         templates.Pending.request(),
         templates.Authentication.request(uuid=Uuid),
+        templates.Agents.request(),
     ]
     Responses = [
         templates.Pending.response(uuid=Uuid),
-        templates.Authentication.response(),
+        templates.Authentication.response().action(
+            lambda: BambooHome()
+            .config(aid=1234)
+            .create(TestNewAgentRegistration.Home.path)
+        ),
+        templates.Agents.response([dict(id=1234)]),
     ]

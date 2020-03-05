@@ -19,7 +19,7 @@ services:
           - bamboo-server
         ipv4_address: 172.1.0.100
       # enable default network to access UI via http://localhost:8085
-      default:
+      # default:
   agent:
     build: agent
     init: true
@@ -35,6 +35,7 @@ services:
     command: ["python", "wait-for-http.py", "http://bamboo-server:8085", "ansible-playbook", "playbook.yml"]
     volumes:
     - ./ansible/project:/project
+    - ./results:/results
     networks:
       internal:
         ipv4_address: 172.1.0.99

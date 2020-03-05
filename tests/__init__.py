@@ -1,13 +1,30 @@
+import shutil
 import socket
 import unittest
 import textwrap
 from pathlib import Path
-from proxy import Request
-from typing import List, Optional
+from .proxy import Request, Response
+from typing import List, Optional, Callable
 from contextlib import contextmanager
 from tempfile import TemporaryDirectory
 
 IpAddress = socket.gethostbyname(socket.gethostname())
+
+Action = Callable[[], None]
+
+
+class ActionResponse(Response):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._action: Optional[Action] = None
+
+    def action(self, action: Action):
+        self._action = action
+        return self
+
+    def __call__(self):
+        if self._action is not None:
+            self._action()
 
 
 class RequestTestCase(unittest.TestCase):
@@ -35,6 +52,7 @@ class RequestTestCase(unittest.TestCase):
 class BambooHome:
     def __init__(self):
         self.files = {}
+        self.path = None
 
     def file(self, filename: str, content: str) -> "BambooHome":
         self.files[filename] = content
@@ -86,9 +104,14 @@ class BambooHome:
         with TemporaryDirectory() as tempdir:
             yield self.create(Path(tempdir))
 
-    def create(self, base) -> Path:
-        path = Path(base, "bamboo-agent-home")
+    def create(self, path) -> Path:
+        path = Path(path)
+        if path.name != "bamboo-agent-home":
+            path = path / "bamboo-agent-home"
+        shutil.rmtree(str(path), ignore_errors=True)
         path.mkdir(parents=True)
         for filename, content in self.files.items():
             (path / filename).write_text(content)
+        self.path = path
         return path
+

@@ -13,9 +13,13 @@ rm -Rf server/data
 tar -xzvf server/init-data.tar.gz -C server
 
 # ansible cleanup and preperation
-rm -rf ansible/project/library ansible/project/results
+rm -rf ansible/project/library results
 mkdir -p ansible/project/library ansible/project/results
 cp ../bamboo-agent-configuration.py ansible/project/library
 
 # run test environment
-docker-compose up --build
+docker-compose up --abort-on-container-exit
+docker-compose logs ansible > results/ansible.out
+
+# check results
+python3 check_results.py

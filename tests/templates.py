@@ -1,4 +1,5 @@
 from .proxy import Request, Response, Method
+from . import ActionResponse
 
 
 class Pending:
@@ -8,7 +9,7 @@ class Pending:
 
     @staticmethod
     def response(uuid: str) -> Response:
-        return Response([dict(uuid=uuid)])
+        return ActionResponse([dict(uuid=uuid)])
 
 
 class Authentication:
@@ -20,4 +21,14 @@ class Authentication:
 
     @staticmethod
     def response(status_code: int = 204) -> Response:
-        return Response(status_code=status_code)
+        return ActionResponse(status_code=status_code)
+
+
+class Agents:
+    @staticmethod
+    def request() -> Request:
+        return Request("/rest/api/latest/agent/")
+
+    @staticmethod
+    def response(agents) -> Response:
+        return ActionResponse(content=agents)

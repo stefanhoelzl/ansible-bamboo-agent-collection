@@ -13,7 +13,7 @@
         user: "admin"
         password: "admin"
         status_code: 200
-        dest: "/project/results/pending.json"
+        dest: "/results/pending.json"
   - name: Register bamboo agent
     bamboo-agent-configuration:
       host: "{{ bamboo_server }}"
@@ -30,4 +30,4 @@
         user: "admin"
         password: "admin"
         status_code: 200
-        dest: "/project/results/registration.json"
+        dest: "/results/registration.json"

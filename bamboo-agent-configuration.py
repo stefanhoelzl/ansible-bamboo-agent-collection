@@ -66,6 +66,16 @@ options:
                     - entity id for assignment
                 required: true
                 type: int
+    timeouts:
+        required: True
+        type: dict
+        suboptions:
+            authentication:
+                description:
+                - timeout after the authentication fails if the agent does not show up in Bamboo
+                required: False
+                type: float
+                default: 240
 
 author:
     - Stefan Hoelzl (@stefanhoelzl)
@@ -87,27 +97,32 @@ RETURN = ""
 import re
 import ssl
 import json
+import time
 import base64
 from enum import Enum
 from pathlib import Path
 from urllib.parse import urljoin
 import urllib.request as urlrequest
-from typing import NamedTuple, List, Dict, Optional, Union, Tuple
+from typing import NamedTuple, List, Dict, Optional, Union, Tuple, Callable
 
 from ansible.module_utils.basic import AnsibleModule
 
-ArgumentSpec = {
-    "host": {"type": "str", "required": True},
-    "home": {"type": "str", "required": True},
-    "authentication": {
-        "type": "dict",
-        "required": True,
-        "suboptions": {
-            "user": {"type": "str", "required": True},
-            "password": {"type": "str", "required": True},
-        },
-    },
-}
+ArgumentSpec = dict(
+    host=dict(type=str, required=True),
+    home=dict(type=str, required=True),
+    authentication=dict(
+        type=dict,
+        required=True,
+        suboptions=dict(
+            user=dict(type=str, required=True), password=dict(type=str, required=True),
+        ),
+    ),
+    timeouts=dict(
+        type=dict,
+        required=False,
+        suboptions=dict(authentication=dict(type=float, required=False, default=240.0)),
+    ),
+)
 
 
 class Method(Enum):
@@ -192,26 +207,53 @@ class HttpRequestHandler:
             return Response(response.read(), status_code=response.getcode())
 
 
+def timeout(query, timeout: float, interval: float = 1):
+    start = time.time()
+    while True:
+        try:
+            return query()
+        except TimeoutError:
+            if time.time() > start + timeout:
+                raise
+        time.sleep(interval)
+
+
 class BambooAgentConfiguration:
     def __init__(
-        self, host: str, home: str, authentication: Dict[str, str], request_handler=HttpRequestHandler
+        self,
+        host: str,
+        home: str,
+        authentication: Dict[str, str],
+        timeouts: Dict[str, float] = dict(),
+        request_handler=HttpRequestHandler,
     ):
         self.home = home
+        self.timeouts = timeouts or dict()
         self.changed = False
         self.request_handler = request_handler(
             host=host, auth=(authentication["user"], authentication["password"])
         )
 
     def uuid(self) -> Optional[str]:
-        uuid = None
-        uuid_file = Path(self.home, "uuid-temp.properties")
         config_file = Path(self.home, "bamboo-agent.cfg.xml")
-        if uuid_file.is_file():
-            uuid = re.search("agentUuid=([A-z0-9-]+)$", uuid_file.read_text()).group(1)
         if config_file.is_file():
             uuid_pattern = "<agentUuid>([A-z0-9-]+)</agentUuid>"
-            uuid = re.search(uuid_pattern, config_file.read_text()).group(1)
-        return uuid
+            return re.search(uuid_pattern, config_file.read_text()).group(1)
+
+        uuid_file = Path(self.home, "uuid-temp.properties")
+        if uuid_file.is_file():
+            return re.search("agentUuid=([A-z0-9-]+)$", uuid_file.read_text()).group(1)
+
+        return None
+
+    def id(self) -> Optional[int]:
+        config_file = Path(self.home, "bamboo-agent.cfg.xml")
+        if config_file.is_file():
+            id_pattern = "<id>([0-9]+)</id>"
+            match = re.search(id_pattern, config_file.read_text())
+            if match:
+                return int(match.group(1))
+        return None
 
     def authentication_pending(self, uuid: str) -> bool:
         pending_agents = self.request(
@@ -231,6 +273,20 @@ class BambooAgentConfiguration:
                 ),
                 response_code=204,
             )
+
+            def agent_available():
+                agent_id = self.id()
+                if agent_id is None:
+                    raise TimeoutError("no id in config file found")
+                else:
+                    agents = self.request(Request("/rest/api/latest/agent/")).content
+                    agent_found = any(
+                        agent for agent in agents if agent["id"] == agent_id
+                    )
+                    if not agent_found:
+                        raise TimeoutError("agent id not known by host")
+
+            timeout(agent_available, timeout=self.timeouts.get("authentication", 240.0))
             self.changed = True
 
     def request(self, request: Request, response_code: int = 200) -> Response:
