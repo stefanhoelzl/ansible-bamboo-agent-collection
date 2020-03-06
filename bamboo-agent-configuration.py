@@ -268,6 +268,15 @@ class BambooAgent:
         self.request_handler = request_handler(
             host=host, auth=(authentication["user"], authentication["password"])
         )
+        self._cached_info = None
+
+    def _get_info(self, force_update=False):
+        if self._cached_info is None or force_update:
+            agents = self.request(Request("/rest/api/latest/agent/")).content
+            self._cached_info = next(
+                (agent for agent in agents if agent["id"] == self.id()), None
+            )
+        return self._cached_info
 
     def request(self, request: Request, response_code: int = 200) -> Response:
         response = self.request_handler(request)
@@ -314,8 +323,7 @@ class BambooAgent:
         aid = self.id()
         if aid is None:
             return False
-        agents = self.request(Request("/rest/api/latest/agent/")).content
-        return any(agent for agent in agents if agent["id"] == aid)
+        return self._get_info(force_update=True) is not None
 
     def authenticate(self):
         uuid = self.uuid()
@@ -329,8 +337,7 @@ class BambooAgent:
         )
 
     def enabled(self) -> bool:
-        agents = self.request(Request("/rest/api/latest/agent/")).content
-        return next((agent for agent in agents if agent["id"] == self.id()))["enabled"]
+        return self._get_info()["enabled"]
 
     def disable(self):
         self.request(

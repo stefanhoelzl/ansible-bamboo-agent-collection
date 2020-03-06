@@ -128,7 +128,6 @@ class TestNewAgentRegistration(BambooAgentAcceptanceTest):
         templates.Pending.request(),
         templates.Authentication.request(uuid=Uuid),
         templates.Agents.request(),
-        templates.Agents.request(),
     ]
     Responses = [
         templates.Pending.response(uuid=Uuid),
@@ -137,7 +136,6 @@ class TestNewAgentRegistration(BambooAgentAcceptanceTest):
             .config(aid=1234)
             .create(TestNewAgentRegistration.Home.path)
         ),
-        templates.Agents.response([dict(id=1234)]),
         templates.Agents.response([dict(id=1234, enabled=True)]),
     ]
 
@@ -149,12 +147,10 @@ class TestAgentDisable(BambooAgentAcceptanceTest):
     ExpectedRequests = [
         templates.Pending.request(),
         templates.Agents.request(),
-        templates.Agents.request(),
         templates.Disable.request(agent_id=1234),
     ]
     Responses = [
         ActionResponse([]),
-        templates.Agents.response([dict(id=1234)]),
         templates.Agents.response([dict(id=1234, enabled=True)]),
         templates.Disable.response(),
     ]
