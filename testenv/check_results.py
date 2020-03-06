@@ -1,19 +1,36 @@
 import json
 from pathlib import Path
 
-pending = json.load(open("results/pending.json"))
-assert len(pending) == 1
-assert pending[0]["ip"] == "172.1.0.101"
 
-registered = json.load(open("results/registration.json"))
-assert len(registered) == 1
-assert registered[0]["name"] == "bamboo-agent"
-assert registered[0]["type"] == "REMOTE"
-assert registered[0]["active"]
-assert registered[0]["enabled"]
+class ResultChecker:
+    def __init__(self):
+        self.tasks = 0
+        self.changed = 0
 
-ansible_output = Path("results/ansible.out").read_text()
-assert (
-    "bamboo-agent               : ok=4    changed=3    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0"
-    in ansible_output
+    def check(self, filename: str, expected: dict, changed=True, after_task=True):
+        self.tasks += 2 if after_task else 1
+        self.changed += 1 if after_task else 0
+        self.changed += 1 if changed else 0
+
+        data = json.load(open(f"results/{ filename }"))
+        assert len(data) == 1
+        for key, expected_value in expected.items():
+            assert (
+                expected_value == data[0][key]
+            ), f"unexpected value '{data[0][key]}' for key '{key}' ({filename})"
+
+    def check_statistic(self, outfile: str):
+        output = Path(f"results/{outfile}").read_text()
+        assert f"ok={self.tasks + 1}" in output, self.tasks
+        assert f"changed={self.changed}" in output, self.changed
+
+
+checker = ResultChecker()
+checker.check("pending.json", dict(ip="172.1.0.101"), after_task=False)
+checker.check(
+    "registration.json",
+    dict(name="bamboo-agent", type="REMOTE", active=True, enabled=True),
 )
+checker.check("disabled.json", dict(enabled=False))
+checker.check("changed_name.json", dict(name="new-name"))
+checker.check_statistic("ansible.out")

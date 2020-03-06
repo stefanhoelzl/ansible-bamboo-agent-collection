@@ -155,3 +155,19 @@ class TestAgentDisable(BambooAgentAcceptanceTest):
         templates.Disable.response(),
     ]
 
+
+class TestSetAgentName(BambooAgentAcceptanceTest):
+    Arguments = dict(name="new-name")
+    Home = BambooHome().config(aid=1234)
+    ExpectChange = True
+    ExpectedRequests = [
+        templates.Pending.request(),
+        templates.Agents.request(),
+        templates.SetName.request(agent_id=1234, name="new-name"),
+    ]
+    Responses = [
+        ActionResponse([]),
+        templates.Agents.response([dict(id=1234, name="old-name")]),
+        templates.SetName.response(),
+    ]
+

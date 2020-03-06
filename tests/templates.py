@@ -56,3 +56,16 @@ class Enable:
     @staticmethod
     def response() -> Response:
         return ActionResponse(status_code=302)
+
+
+class SetName:
+    @staticmethod
+    def request(agent_id: int, name: str) -> Request:
+        return Request(
+            f"/admin/agent/updateAgentDetails.action?agentId={ agent_id }&agentName={ name }&save=Update",
+            method=Method.Post,
+        )
+
+    @staticmethod
+    def response() -> Response:
+        return ActionResponse(status_code=302)

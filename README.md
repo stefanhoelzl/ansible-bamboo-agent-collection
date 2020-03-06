@@ -6,7 +6,7 @@ using the [REST API](https://docs.atlassian.com/atlassian-bamboo/REST/6.9.2).
 ## Features
 [x] [agent authentication](https://confluence.atlassian.com/bamboo/agent-authentication-289277196.html)
 [x] [enable/disable an agent](https://confluence.atlassian.com/bamboo/disabling-or-deleting-an-agent-289277174.html)
-[ ] update agent name (as shown in Bamboo UI)
+[x] update agent name (as shown in Bamboo UI)
 [ ] [dedicating an agent](https://confluence.atlassian.com/bamboo/dedicating-an-agent-629015108.html)
 
 ## Usage

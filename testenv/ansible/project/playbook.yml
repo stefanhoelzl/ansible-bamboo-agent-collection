@@ -3,6 +3,9 @@
   hosts: bamboo-agent
   vars:
     bamboo_server: "http://bamboo-server:8085"
+    bamboo_home: "/home/bamboo/bamboo-agent-home"
+    bamboo_user: "admin"
+    bamboo_password: "admin"
   tasks:
   - name: Query pending agents
     local_action: uri
@@ -17,10 +20,10 @@
   - name: Register bamboo agent
     bamboo-agent-configuration:
       host: "{{ bamboo_server }}"
-      home: "/home/bamboo/bamboo-agent-home"
+      home: "{{ bamboo_home }}"
       authentication:
-        user: "admin"
-        password: "admin"
+        user: "{{ bamboo_user }}"
+        password: "{{ bamboo_password }}"
   - name: Query registered agents
     local_action: uri
     args:
@@ -31,3 +34,39 @@
         password: "admin"
         status_code: 200
         dest: "/results/registration.json"
+  - name: Disable agent
+    bamboo-agent-configuration:
+      host: "{{ bamboo_server }}"
+      home: "{{ bamboo_home }}"
+      enabled: false
+      authentication:
+        user: "{{ bamboo_user }}"
+        password: "{{ bamboo_password }}"
+  - name: Query agent disabled
+    local_action: uri
+    args:
+        url: "http://bamboo-server:8085/rest/api/latest/agent/"
+        method: GET
+        force_basic_auth: yes
+        user: "admin"
+        password: "admin"
+        status_code: 200
+        dest: "/results/disabled.json"
+  - name: Set bamboo agent name
+    bamboo-agent-configuration:
+      host: "{{ bamboo_server }}"
+      home: "{{ bamboo_home }}"
+      name: "new-name"
+      authentication:
+        user: "{{ bamboo_user }}"
+        password: "{{ bamboo_password }}"
+  - name: Query changed name
+    local_action: uri
+    args:
+        url: "http://bamboo-server:8085/rest/api/latest/agent/"
+        method: GET
+        force_basic_auth: yes
+        user: "admin"
+        password: "admin"
+        status_code: 200
+        dest: "/results/changed_name.json"

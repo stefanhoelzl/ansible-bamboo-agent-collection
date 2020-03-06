@@ -294,6 +294,40 @@ class TestBambooAgent(RequestTestCase):
             agent.enable()
         self.assert_requests(rh.requests, templates.Enable.request(agent_id=1234))
 
+    def test_name(self):
+        rh = MockRequestHandler(
+            responses=[templates.Agents.response([dict(id=1234, name="agent-name")])]
+        )
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(home=home, request_handler=rh)
+            self.assertEqual(agent.name(), "agent-name")
+        self.assert_requests(rh.requests, templates.Agents.request())
+
+    def test_set_name(self):
+        rh = MockRequestHandler(responses=[templates.SetName.response()])
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.set_name("new-name")
+        self.assert_requests(
+            rh.requests, templates.SetName.request(agent_id=1234, name="new-name")
+        )
+
+    def test_caching(self):
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(
+                home=home,
+                request_handler=MockRequestHandler(
+                    responses=[
+                        templates.Agents.response(
+                            [dict(id=1234, enabled=True, name="agent-name")]
+                        )
+                    ]
+                ),
+            )
+            self.assertTrue(agent.available())
+            self.assertTrue(agent.enabled())
+            self.assertEqual(agent.name(), "agent-name")
+
 
 def make_bamboo_agent_controller(
     agent: BambooAgent = None, **kwargs
@@ -349,7 +383,14 @@ class TestRegistration(TestCase):
 
 
 class TestSetEnabled(TestCase):
-    def test_no_change(self):
+    def test_unchanged(self):
+        agent = Mock()
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.set_enabled(None)
+        self.assertEqual(agent.method_calls, [])
+        self.assertFalse(controller.changed)
+
+    def test_different(self):
         agent = Mock()
         agent.enabled.return_value = True
         controller = make_bamboo_agent_controller(agent=agent)
@@ -371,4 +412,29 @@ class TestSetEnabled(TestCase):
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_enabled(False)
         self.assertEqual(agent.method_calls, [call.enabled(), call.disable()])
+        self.assertTrue(controller.changed)
+
+
+class TestSetName(TestCase):
+    def test_unchanged(self):
+        agent = Mock()
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.set_name(None)
+        self.assertEqual(agent.method_calls, [])
+        self.assertFalse(controller.changed)
+
+    def test_same(self):
+        agent = Mock()
+        agent.name.return_value = "agent-name"
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.set_name("agent-name")
+        self.assertEqual(agent.method_calls, [call.name()])
+        self.assertFalse(controller.changed)
+
+    def test_different(self):
+        agent = Mock()
+        agent.name.return_value = "old-name"
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.set_name("new-name")
+        self.assertEqual(agent.method_calls, [call.name(), call.set_name("new-name")])
         self.assertTrue(controller.changed)

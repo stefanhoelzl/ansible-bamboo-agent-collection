@@ -47,10 +47,12 @@ options:
                 - Password for authentication
                 type: str
                 required: true
+    name:
+        type: str
+        required: false
     enabled:
         type: bool
         required: false
-        default: true
     assignments:
         description:
         - agent assignments
@@ -114,7 +116,8 @@ from ansible.module_utils.basic import AnsibleModule
 ArgumentSpec = dict(
     host=dict(type=str, required=True),
     home=dict(type=str, required=True),
-    enabled=dict(type=bool, required=False, default=True),
+    name=dict(type=str, required=False),
+    enabled=dict(type=bool, required=False),
     authentication=dict(
         type=dict,
         required=True,
@@ -357,6 +360,18 @@ class BambooAgent:
             response_code=302,
         )
 
+    def name(self) -> str:
+        return self._get_info()["name"]
+
+    def set_name(self, name: str):
+        self.request(
+            Request(
+                f"/admin/agent/updateAgentDetails.action?agentId={ self.id() }&agentName={ name }&save=Update",
+                method=Method.Post,
+            ),
+            response_code=302,
+        )
+
 
 class BambooAgentController:
     def __init__(
@@ -377,12 +392,17 @@ class BambooAgentController:
             timeout(available, timeout=self.timeouts.get("authentication", 240.0))
             self.changed = True
 
-    def set_enabled(self, enabled: bool):
-        if enabled != self.agent.enabled():
+    def set_enabled(self, enabled: Optional[bool]):
+        if enabled is not None and enabled != self.agent.enabled():
             if enabled:
                 self.agent.enable()
             else:
                 self.agent.disable()
+            self.changed = True
+
+    def set_name(self, name: Optional[str]):
+        if name is not None and self.agent.name() != name:
+            self.agent.set_name(name)
             self.changed = True
 
 
@@ -390,8 +410,9 @@ def main():
     module = AnsibleModule(argument_spec=ArgumentSpec)
 
     enabled = module.params.pop("enabled")
+    name = module.params.pop("name", None)
 
-    bac = BambooAgentController(
+    controller = BambooAgentController(
         agent=BambooAgent(
             host=module.params.pop("host"),
             home=module.params.pop("home"),
@@ -399,9 +420,11 @@ def main():
         ),
         **module.params,
     )
-    bac.register()
-    bac.set_enabled(enabled)
-    module.exit_json(changed=bac.changed)
+    controller.register()
+    controller.set_enabled(enabled)
+    controller.set_name(name)
+
+    module.exit_json(changed=controller.changed)
 
 
 if __name__ == "__main__":
