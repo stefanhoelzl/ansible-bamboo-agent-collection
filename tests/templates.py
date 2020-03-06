@@ -32,3 +32,27 @@ class Agents:
     @staticmethod
     def response(agents) -> Response:
         return ActionResponse(content=agents)
+
+
+class Disable:
+    @staticmethod
+    def request(agent_id: int) -> Request:
+        return Request(
+            f"/admin/agent/disableAgent.action?agentId={agent_id}", method=Method.Post
+        )
+
+    @staticmethod
+    def response() -> Response:
+        return ActionResponse(status_code=302)
+
+
+class Enable:
+    @staticmethod
+    def request(agent_id: int) -> Request:
+        return Request(
+            f"/admin/agent/enableAgent.action?agentId={agent_id}", method=Method.Post
+        )
+
+    @staticmethod
+    def response() -> Response:
+        return ActionResponse(status_code=302)

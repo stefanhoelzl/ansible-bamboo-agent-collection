@@ -22,7 +22,7 @@ from .proxy import (
 
 
 class TestTimeout(TestCase):
-    def test_query_result(self):
+    def test_returns_query_result(self):
         self.assertTrue(timeout(Mock(return_value=True), timeout=0))
 
     def test_raise(self):
@@ -61,17 +61,16 @@ class MockUrlOpen:
 
     def __init__(self, status_code: int = 200, content: bytes = b""):
         self.response = self.MockResponse(status_code, content)
-        self.context = None
         self.url = None
         self.method = None
         self.header = None
 
     @contextmanager
-    def __call__(self, request, context):
-        self.context = context
+    def __call__(self, request, timeout):
         self.url = request.full_url
         self.method = request.method
         self.header = request.headers
+        self.timeout = timeout
         yield self.response
 
 
@@ -92,7 +91,7 @@ class TestHttpRequestHandler(TestCase):
                 "X-atlassian-token": "no-check",
             },
         )
-        self.assertTrue(isinstance(urlopen.context, ssl.SSLContext))
+        self.assertEqual(urlopen.timeout, 10)
 
     def test_response_data_and_status_code(self):
         handler = HttpRequestHandler(
@@ -125,7 +124,7 @@ class MockRequestHandler:
         self.requests.append(request)
         response = self.responses.pop(0) if self.responses else None
         if callable(response):
-            response()
+            response.__call__()
         return response
 
 
@@ -259,6 +258,42 @@ class TestBambooAgent(RequestTestCase):
             agent = make_bamboo_agent(home=home)
             self.assertRaises(MissingUuid, agent.authenticate)
 
+    def test_enabled(self):
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(
+                home=home,
+                request_handler=MockRequestHandler(
+                    responses=[templates.Agents.response([dict(id=1234, enabled=True)])]
+                ),
+            )
+            self.assertTrue(agent.enabled())
+
+    def test_not_enabled(self):
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(
+                home=home,
+                request_handler=MockRequestHandler(
+                    responses=[
+                        templates.Agents.response([dict(id=1234, enabled=False)])
+                    ]
+                ),
+            )
+            self.assertFalse(agent.enabled())
+
+    def test_disable(self):
+        rh = MockRequestHandler(responses=[templates.Disable.response()])
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.disable()
+        self.assert_requests(rh.requests, templates.Disable.request(agent_id=1234))
+
+    def test_enable(self):
+        rh = MockRequestHandler(responses=[templates.Enable.response()])
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.enable()
+        self.assert_requests(rh.requests, templates.Enable.request(agent_id=1234))
+
 
 def make_bamboo_agent_controller(
     agent: BambooAgent = None, **kwargs
@@ -311,3 +346,29 @@ class TestRegistration(TestCase):
             agent=agent, timeouts=dict(authentication=0)
         )
         self.assertRaises(TimeoutError, controller.register)
+
+
+class TestSetEnabled(TestCase):
+    def test_no_change(self):
+        agent = Mock()
+        agent.enabled.return_value = True
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.set_enabled(True)
+        self.assertEqual(agent.method_calls, [call.enabled()])
+        self.assertFalse(controller.changed)
+
+    def test_enable(self):
+        agent = Mock()
+        agent.enabled.return_value = False
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.set_enabled(True)
+        self.assertEqual(agent.method_calls, [call.enabled(), call.enable()])
+        self.assertTrue(controller.changed)
+
+    def test_disable(self):
+        agent = Mock()
+        agent.enabled.return_value = True
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.set_enabled(False)
+        self.assertEqual(agent.method_calls, [call.enabled(), call.disable()])
+        self.assertTrue(controller.changed)

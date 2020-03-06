@@ -12,7 +12,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from . import templates
 from .proxy import Method, Request, Response
-from tests import IpAddress, RequestTestCase, BambooHome
+from tests import IpAddress, RequestTestCase, BambooHome, ActionResponse
 
 
 class HttpRequestHandler(BaseHTTPRequestHandler):
@@ -128,6 +128,7 @@ class TestNewAgentRegistration(BambooAgentAcceptanceTest):
         templates.Pending.request(),
         templates.Authentication.request(uuid=Uuid),
         templates.Agents.request(),
+        templates.Agents.request(),
     ]
     Responses = [
         templates.Pending.response(uuid=Uuid),
@@ -137,4 +138,24 @@ class TestNewAgentRegistration(BambooAgentAcceptanceTest):
             .create(TestNewAgentRegistration.Home.path)
         ),
         templates.Agents.response([dict(id=1234)]),
+        templates.Agents.response([dict(id=1234, enabled=True)]),
     ]
+
+
+class TestAgentDisable(BambooAgentAcceptanceTest):
+    Arguments = dict(enabled=False)
+    Home = BambooHome().config(aid=1234)
+    ExpectChange = True
+    ExpectedRequests = [
+        templates.Pending.request(),
+        templates.Agents.request(),
+        templates.Agents.request(),
+        templates.Disable.request(agent_id=1234),
+    ]
+    Responses = [
+        ActionResponse([]),
+        templates.Agents.response([dict(id=1234)]),
+        templates.Agents.response([dict(id=1234, enabled=True)]),
+        templates.Disable.response(),
+    ]
+

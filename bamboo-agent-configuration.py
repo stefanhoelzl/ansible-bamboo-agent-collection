@@ -47,6 +47,10 @@ options:
                 - Password for authentication
                 type: str
                 required: true
+    enabled:
+        type: bool
+        required: false
+        default: true
     assignments:
         description:
         - agent assignments
@@ -110,6 +114,7 @@ from ansible.module_utils.basic import AnsibleModule
 ArgumentSpec = dict(
     host=dict(type=str, required=True),
     home=dict(type=str, required=True),
+    enabled=dict(type=bool, required=False, default=True),
     authentication=dict(
         type=dict,
         required=True,
@@ -203,9 +208,21 @@ class Response(ContentContainer):
             self.header["Content-Length"] = len(bytes(self))
 
 
+class NoRedirection(urlrequest.HTTPErrorProcessor):
+    def http_response(self, request, response):
+        if response.code == 302:
+            return response
+        return super().http_response(request, response)
+
+
+urlopen_no_redirect = urlrequest.build_opener(
+    NoRedirection(), urlrequest.HTTPSHandler(context=ssl.SSLContext())
+).open
+
+
 class HttpRequestHandler:
     def __init__(
-        self, host: str, auth: Tuple[str, str], urlopen=urlrequest.urlopen,
+        self, host: str, auth: Tuple[str, str], urlopen=urlopen_no_redirect,
     ):
         self.host = host
         self.auth = auth
@@ -223,7 +240,7 @@ class HttpRequestHandler:
         )
         request.add_header("Authorization", f"Basic {auth_string}")
         request.add_header("X-Atlassian-Token", "no-check")
-        with self._urlopen(request, context=ssl.SSLContext()) as response:
+        with self._urlopen(request, timeout=10) as response:
             return Response(response.read(), status_code=response.getcode())
 
 
@@ -311,6 +328,28 @@ class BambooAgent:
             response_code=204,
         )
 
+    def enabled(self) -> bool:
+        agents = self.request(Request("/rest/api/latest/agent/")).content
+        return next((agent for agent in agents if agent["id"] == self.id()))["enabled"]
+
+    def disable(self):
+        self.request(
+            Request(
+                f"/admin/agent/disableAgent.action?agentId={self.id()}",
+                method=Method.Post,
+            ),
+            response_code=302,
+        )
+
+    def enable(self):
+        self.request(
+            Request(
+                f"/admin/agent/enableAgent.action?agentId={self.id()}",
+                method=Method.Post,
+            ),
+            response_code=302,
+        )
+
 
 class BambooAgentController:
     def __init__(
@@ -331,9 +370,20 @@ class BambooAgentController:
             timeout(available, timeout=self.timeouts.get("authentication", 240.0))
             self.changed = True
 
+    def set_enabled(self, enabled: bool):
+        if enabled != self.agent.enabled():
+            if enabled:
+                self.agent.enable()
+            else:
+                self.agent.disable()
+            self.changed = True
+
 
 def main():
     module = AnsibleModule(argument_spec=ArgumentSpec)
+
+    enabled = module.params.pop("enabled")
+
     bac = BambooAgentController(
         agent=BambooAgent(
             host=module.params.pop("host"),
@@ -343,6 +393,7 @@ def main():
         **module.params,
     )
     bac.register()
+    bac.set_enabled(enabled)
     module.exit_json(changed=bac.changed)
 
 
