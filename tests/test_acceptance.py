@@ -140,6 +140,20 @@ class TestNewAgentRegistration(BambooAgentAcceptanceTest):
     ]
 
 
+class TestUnchanged(BambooAgentAcceptanceTest):
+    Arguments = dict(enabled=True, name="agent-name")
+    Home = BambooHome().config(aid=1234)
+    ExpectChange = False
+    ExpectedRequests = [
+        templates.Pending.request(),
+        templates.Agents.request(),
+    ]
+    Responses = [
+        ActionResponse([]),
+        templates.Agents.response([dict(id=1234, enabled=True, name="agent-name")]),
+    ]
+
+
 class TestAgentDisable(BambooAgentAcceptanceTest):
     Arguments = dict(enabled=False)
     Home = BambooHome().config(aid=1234)

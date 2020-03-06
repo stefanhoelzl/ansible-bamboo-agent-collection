@@ -70,3 +70,22 @@
         password: "admin"
         status_code: 200
         dest: "/results/changed_name.json"
+  - name: No changes
+    bamboo-agent-configuration:
+      host: "{{ bamboo_server }}"
+      home: "{{ bamboo_home }}"
+      name: "new-name"
+      enabled: false
+      authentication:
+        user: "{{ bamboo_user }}"
+        password: "{{ bamboo_password }}"
+  - name: Query no changes
+    local_action: uri
+    args:
+        url: "http://bamboo-server:8085/rest/api/latest/agent/"
+        method: GET
+        force_basic_auth: yes
+        user: "admin"
+        password: "admin"
+        status_code: 200
+        dest: "/results/unchanged.json"

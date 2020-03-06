@@ -33,4 +33,5 @@ checker.check(
 )
 checker.check("disabled.json", dict(enabled=False))
 checker.check("changed_name.json", dict(name="new-name"))
+checker.check("unchanged.json", dict(name="new-name", enabled=False), changed=False)
 checker.check_statistic("ansible.out")
