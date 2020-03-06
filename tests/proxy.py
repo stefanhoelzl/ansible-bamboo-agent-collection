@@ -14,3 +14,4 @@ MissingUuid = bamboo_agent_configuration.MissingUuid
 SelfRecoverableBambooAgentError = (
     bamboo_agent_configuration.SelfRecoverableBambooAgentError
 )
+AssignmentNotFound = bamboo_agent_configuration.AssignmentNotFound

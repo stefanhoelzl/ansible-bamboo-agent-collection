@@ -7,7 +7,7 @@ using the [REST API](https://docs.atlassian.com/atlassian-bamboo/REST/6.9.2).
 [x] [agent authentication](https://confluence.atlassian.com/bamboo/agent-authentication-289277196.html)
 [x] [enable/disable an agent](https://confluence.atlassian.com/bamboo/disabling-or-deleting-an-agent-289277174.html)
 [x] update agent name (as shown in Bamboo UI)
-[ ] [dedicating an agent](https://confluence.atlassian.com/bamboo/dedicating-an-agent-629015108.html)
+[x] [dedicating an agent](https://confluence.atlassian.com/bamboo/dedicating-an-agent-629015108.html)
 
 ## Usage
 Add `bamboo-agent-configuration.py` to your [modules path](https://docs.ansible.com/ansible/latest/dev_guide/developing_locally.html)

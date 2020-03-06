@@ -70,12 +70,25 @@
         password: "admin"
         status_code: 200
         dest: "/results/changed_name.json"
+  - name: Assignments
+    bamboo-agent-configuration:
+      host: "{{ bamboo_server }}"
+      home: "{{ bamboo_home }}"
+      assignments:
+      - type: project
+        key: DP
+      authentication:
+        user: "{{ bamboo_user }}"
+        password: "{{ bamboo_password }}"
   - name: No changes
     bamboo-agent-configuration:
       host: "{{ bamboo_server }}"
       home: "{{ bamboo_home }}"
       name: "new-name"
       enabled: false
+      assignments:
+      - type: project
+        key: DP
       authentication:
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"

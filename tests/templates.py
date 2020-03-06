@@ -69,3 +69,60 @@ class SetName:
     @staticmethod
     def response() -> Response:
         return ActionResponse(status_code=302)
+
+
+class Assignments:
+    @staticmethod
+    def request(agent_id: int) -> Request:
+        return Request(
+            f"/rest/api/latest/agent/assignment?executorType=AGENT&executorId={ agent_id }"
+        )
+
+    @staticmethod
+    def response(assignments: list) -> Response:
+        return ActionResponse(content=assignments)
+
+
+class AddAssignment:
+    @staticmethod
+    def request(agent_id: int, etype: str, eid: int) -> Request:
+        return Request(
+            f"/rest/api/latest/agent/assignment?executorType=AGENT&executorId={ agent_id }&assignmentType={ etype }&entityId={ eid }",
+            method=Method.Post,
+        )
+
+    @staticmethod
+    def response() -> Response:
+        return ActionResponse()
+
+
+class RemoveAssignment:
+    @staticmethod
+    def request(agent_id: int, etype: str, eid: int) -> Request:
+        return Request(
+            f"/rest/api/latest/agent/assignment?executorType=AGENT&executorId={ agent_id }&assignmentType={ etype }&entityId={ eid }",
+            method=Method.Delete,
+        )
+
+    @staticmethod
+    def response() -> Response:
+        return ActionResponse(status_code=204)
+
+
+class SearchAssignment:
+    @staticmethod
+    def request(etype: str) -> Request:
+        return Request(
+            f"/rest/api/latest/agent/assignment/search?searchTerm=&executorType=AGENT&entityType={ etype }",
+        )
+
+    @staticmethod
+    def response(results: list) -> Response:
+        return ActionResponse(
+            content=dict(
+                size=len(results),
+                searchResults=[
+                    dict(id=r["key"], searchEntity=dict(id=r["id"])) for r in results
+                ],
+            )
+        )

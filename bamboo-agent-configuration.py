@@ -60,7 +60,7 @@ options:
         description:
         - agent assignments
         required: false
-        type: dict
+        type: list
         suboptions:
             type:
                 description:
@@ -131,7 +131,9 @@ import time
 import base64
 from enum import Enum
 from pathlib import Path
+from functools import lru_cache
 from urllib.parse import urljoin
+from itertools import zip_longest
 import urllib.request as urlrequest
 from typing import NamedTuple, List, Dict, Optional, Union, Tuple, Callable
 
@@ -142,6 +144,14 @@ ArgumentSpec = dict(
     home=dict(type=str, required=True),
     name=dict(type=str, required=False),
     enabled=dict(type=bool, required=False),
+    assignments=dict(
+        type=list,
+        required=False,
+        suboptions=dict(
+            type=dict(type=str, required=True, choices=["plan", "project"]),
+            key=dict(type=str, required=True),
+        ),
+    ),
     authentication=dict(
         type=dict,
         required=True,
@@ -178,6 +188,10 @@ class AgentConfigurationError(RecoverableBambooAgentError):
 
 
 class MissingUuid(SelfRecoverableBambooAgentError):
+    pass
+
+
+class AssignmentNotFound(BambooAgentError):
     pass
 
 
@@ -308,7 +322,9 @@ class BambooAgent:
     def request(self, request: Request, response_code: int = 200) -> Response:
         response = self.request_handler(request)
         if response.status_code != response_code:
-            raise ServerConnectionError(f"{response.status_code}: {request.path}")
+            raise ServerConnectionError(
+                f"{response.status_code}: {request.method} {request.path}"
+            )
         return response
 
     def uuid(self) -> Optional[str]:
@@ -396,6 +412,63 @@ class BambooAgent:
             response_code=302,
         )
 
+    def assignments(self) -> Dict[int, str]:
+        return {
+            assignment["executableId"]: assignment["executableType"]
+            for assignment in self.request(
+                Request(
+                    f"/rest/api/latest/agent/assignment?executorType=AGENT&executorId={ self.id() }"
+                )
+            ).content
+        }
+
+    def add_assignment(self, etype: str, eid: int):
+        self.request(
+            Request(
+                f"/rest/api/latest/agent/assignment?executorType=AGENT&executorId={ self.id() }&assignmentType={ etype }&entityId={ eid }",
+                method=Method.Post,
+            ),
+        )
+
+    def remove_assignment(self, etype: str, eid: int):
+        self.request(
+            Request(
+                f"/rest/api/latest/agent/assignment?executorType=AGENT&executorId={ self.id() }&assignmentType={ etype }&entityId={ eid }",
+                method=Method.Delete,
+            ),
+            response_code=204,
+        )
+
+    def resolve_assignments(
+        self, assignments: Optional[List[Dict[str, str]]]
+    ) -> Optional[Dict[int, str]]:
+        if assignments is None:
+            return None
+
+        @lru_cache(maxsize=2)
+        def cached_search(etype):
+            return self.request(
+                Request(
+                    f"/rest/api/latest/agent/assignment/search?searchTerm=&executorType=AGENT&entityType={etype}"
+                )
+            ).content["searchResults"]
+
+        resolved = dict()
+        for assignment in assignments:
+            key, etype = assignment["key"], assignment["type"].upper()
+            eid = next(
+                (
+                    result["searchEntity"]["id"]
+                    for result in cached_search(etype)
+                    if result["id"] == key
+                ),
+                None,
+            )
+            if eid is None:
+                raise AssignmentNotFound()
+            resolved[eid] = etype
+        return resolved
+
 
 class BambooAgentController:
     def __init__(
@@ -429,12 +502,27 @@ class BambooAgentController:
             self.agent.set_name(name)
             self.changed = True
 
+    def update_assignments(self, assignments: Optional[Dict[int, str]]):
+        if assignments is None:
+            return
+
+        current_assignments = self.agent.assignments()
+        if current_assignments != assignments:
+            for eid, etype in assignments.items():
+                if eid not in current_assignments:
+                    self.agent.add_assignment(etype, eid)
+            for eid, etype in current_assignments.items():
+                if eid not in assignments:
+                    self.agent.remove_assignment(etype, eid)
+            self.changed = True
+
 
 def main():
     module = AnsibleModule(argument_spec=ArgumentSpec)
 
     enabled = module.params.pop("enabled")
-    name = module.params.pop("name", None)
+    name = module.params.pop("name")
+    assignments = module.params.pop("assignments")
 
     controller = BambooAgentController(
         agent=BambooAgent(
@@ -447,6 +535,7 @@ def main():
     controller.register()
     controller.set_enabled(enabled)
     controller.set_name(name)
+    controller.update_assignments(controller.agent.resolve_assignments(assignments))
 
     module.exit_json(changed=controller.changed)
 

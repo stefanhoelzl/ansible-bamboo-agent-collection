@@ -141,16 +141,22 @@ class TestNewAgentRegistration(BambooAgentAcceptanceTest):
 
 
 class TestUnchanged(BambooAgentAcceptanceTest):
-    Arguments = dict(enabled=True, name="agent-name")
+    Arguments = dict(
+        enabled=True, name="agent-name", assignments=[dict(type="plan", key="PL")]
+    )
     Home = BambooHome().config(aid=1234)
     ExpectChange = False
     ExpectedRequests = [
         templates.Pending.request(),
         templates.Agents.request(),
+        templates.SearchAssignment.request(etype="PLAN"),
+        templates.Assignments.request(agent_id=1234),
     ]
     Responses = [
         ActionResponse([]),
         templates.Agents.response([dict(id=1234, enabled=True, name="agent-name")]),
+        templates.SearchAssignment.response([dict(key="PL", id=1)]),
+        templates.Assignments.response([dict(executableType="PLAN", executableId=1)]),
     ]
 
 
@@ -183,5 +189,36 @@ class TestSetAgentName(BambooAgentAcceptanceTest):
         ActionResponse([]),
         templates.Agents.response([dict(id=1234, name="old-name")]),
         templates.SetName.response(),
+    ]
+
+
+class TestAssignments(BambooAgentAcceptanceTest):
+    Arguments = dict(
+        assignments=[dict(type="plan", key="PL"), dict(type="project", key="PR")]
+    )
+    Home = BambooHome().config(aid=1234)
+    ExpectChange = True
+    ExpectedRequests = [
+        templates.Pending.request(),
+        templates.Agents.request(),
+        templates.SearchAssignment.request(etype="PLAN"),
+        templates.SearchAssignment.request(etype="PROJECT"),
+        templates.Assignments.request(agent_id=1234),
+        templates.AddAssignment.request(agent_id=1234, etype="PROJECT", eid=1),
+        templates.RemoveAssignment.request(agent_id=1234, etype="PROJECT", eid=2),
+    ]
+    Responses = [
+        ActionResponse([]),
+        templates.Agents.response([dict(id=1234)]),
+        templates.SearchAssignment.response([dict(key="PL", id=0)]),
+        templates.SearchAssignment.response([dict(key="PR", id=1)]),
+        templates.Assignments.response(
+            [
+                dict(executableType="PROJECT", executableId=2),
+                dict(executableType="PLAN", executableId=0),
+            ]
+        ),
+        templates.AddAssignment.response(),
+        templates.RemoveAssignment.response(),
     ]
 
