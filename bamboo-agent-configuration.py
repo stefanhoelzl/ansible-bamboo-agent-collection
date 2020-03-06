@@ -13,12 +13,15 @@ DOCUMENTATION = """
 ---
 module: bamboo-agent
 
-short_description: bamboo agent registration
+short_description: bamboo agent configuration
 
 version_added: "2.9.5"
 
 description:
-- "Handles bamboo agent registraion. Allows agent assignments."
+- "Handles bamboo remote agent configuration."
+- "Supports agent registration."
+- "Supports agent assignments."
+- "Supports enable/disable agent and setting name/description."
 
 options:
     host:
@@ -69,7 +72,7 @@ options:
                 - project
             id:
                 description:
-                    - entity id for assignment
+                - entity id for assignment
                 required: true
                 type: int
     timeouts:
@@ -84,18 +87,39 @@ options:
                 default: 240
 
 author:
-    - Stefan Hoelzl (@stefanhoelzl)
+- Stefan Hoelzl (@stefanhoelzl)
 
 seealso:
-    - name: Bamboo REST API documentation
-      link: https://docs.atlassian.com/atlassian-bamboo/REST/
+- name: Bamboo REST API documentation
+  link: https://docs.atlassian.com/atlassian-bamboo/REST/
 """
 
 EXAMPLES = """
-- name: agent registration
+- name: only agent registration
   bamboo-agent:
     host: https://bamboo-host
     home: /home/bamboo/bamboo-agent-home/
+    authentication:
+        user: "user"
+        password: "{{ secret_password }}"
+- name: agent configuration
+  bamboo-agent:
+    host: https://bamboo-host
+    home: /home/bamboo/bamboo-agent-home/
+    name: "Agent Name"
+    enabled: False
+    authentication:
+        user: "user"
+        password: "{{ secret_password }}"
+- name: custom timeout
+  bamboo-agent:
+    host: https://bamboo-host
+    home: /home/bamboo/bamboo-agent-home/
+    timeouts:
+        authentication: 600
+    authentication:
+        user: "user"
+        password: "{{ secret_password }}"
 """
 
 RETURN = ""

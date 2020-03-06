@@ -23,6 +23,7 @@ class ResultChecker:
         output = Path(f"results/{outfile}").read_text()
         assert f"ok={self.tasks + 1}" in output, self.tasks
         assert f"changed={self.changed}" in output, self.changed
+        assert "failed=0" in output
 
 
 checker = ResultChecker()
