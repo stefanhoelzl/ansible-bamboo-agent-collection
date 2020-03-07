@@ -480,7 +480,7 @@ class TestRegistration(TestCase):
         agent.authenticated.return_value = False
         agent.available.return_value = False
         controller = make_bamboo_agent_controller(
-            agent=agent, timeouts=dict(authentication=0)
+            agent=agent, timings=dict(authentication_timeout=0)
         )
         self.assertRaises(TimeoutError, controller.register)
 
@@ -611,8 +611,10 @@ class TestBlockWhileBusy(TestCase):
     def test_agent_is_ready(self):
         agent = Mock()
         agent.busy.return_value = False
-        controller = make_bamboo_agent_controller(agent=agent)
-        controller.block_while_busy(timeout=None, interval=0)
+        controller = make_bamboo_agent_controller(
+            agent=agent, timings=dict(busy_timeout=None, busy_polling_interval=0)
+        )
+        controller.block_while_busy()
         self.assertEqual(
             agent.method_calls, [call.busy()],
         )
@@ -620,8 +622,10 @@ class TestBlockWhileBusy(TestCase):
     def test_wait_while_agent_is_busy(self):
         agent = Mock()
         agent.busy.side_effect = [True, False]
-        controller = make_bamboo_agent_controller(agent=agent)
-        controller.block_while_busy(timeout=None, interval=0)
+        controller = make_bamboo_agent_controller(
+            agent=agent, timings=dict(busy_timeout=None, busy_polling_interval=0)
+        )
+        controller.block_while_busy()
         self.assertEqual(
             agent.method_calls, [call.busy(), call.busy()],
         )
@@ -629,11 +633,8 @@ class TestBlockWhileBusy(TestCase):
     def test_timeout(self):
         agent = Mock()
         agent.busy.return_value = True
-        controller = make_bamboo_agent_controller(agent=agent)
-        self.assertRaises(
-            TimeoutError,
-            controller.block_while_busy,
-            timeout=0,
-            interval=0,
+        controller = make_bamboo_agent_controller(
+            agent=agent, timings=dict(busy_timeout=0, busy_polling_interval=0)
         )
+        self.assertRaises(TimeoutError, controller.block_while_busy)
 

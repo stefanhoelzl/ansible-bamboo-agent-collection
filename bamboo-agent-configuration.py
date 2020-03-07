@@ -82,24 +82,24 @@ options:
         - Recommended to enable the agent when using this option, otherwise it cannot be ensured that the agent picks up another job.
         type: bool
         default: False
-    interval_busy_polling:
-        description:
-        - interval between http request to check if agent is still busy
-        type: float
-        default: 60.0
-    timeouts:
+    timings:
         required: True
         type: dict
         suboptions:
-            block_while_busy:
-                required: False
+            busy_timeout:
+                required: false
                 type: float
-            authentication:
+            authentication_timeout:
                 description:
-                - timeout after the authentication fails if the agent does not show up in Bamboo
-                required: False
+                - seconds after the authentication fails if the agent does not show up in Bamboo
+                required: false
                 type: float
                 default: 240
+            busy_polling_interval:
+                description:
+                - seconds between http request to check if agent is still busy
+                type: float
+                default: 60
 
 author:
 - Stefan Hoelzl (@stefanhoelzl)
@@ -176,7 +176,6 @@ ArgumentSpec = dict(
     name=dict(type=str, required=False),
     enabled=dict(type=bool, required=False),
     block_while_busy=dict(type=bool, required=False),
-    interval_busy_polling=dict(type=float, default=60.0, required=False),
     assignments=dict(
         type=list,
         required=False,
@@ -192,12 +191,13 @@ ArgumentSpec = dict(
             user=dict(type=str, required=True), password=dict(type=str, required=True),
         ),
     ),
-    timeouts=dict(
+    timings=dict(
         type=dict,
         required=False,
         suboptions=dict(
-            authentication=dict(type=float, required=False, default=240.0),
-            block_while_busy=dict(type=float, required=False),
+            authentication_timeout=dict(type=float, required=False, default=240.0),
+            busy_timeout=dict(type=float, required=False),
+            busy_polling_interval=dict(type=float, default=60.0, required=False),
         ),
     ),
 )
@@ -515,10 +515,10 @@ class BambooAgent:
 
 class BambooAgentController:
     def __init__(
-        self, agent: BambooAgent, timeouts: Dict[str, float] = dict(),
+        self, agent: BambooAgent, timings: Dict[str, float] = None,
     ):
         self.agent = agent
-        self.timeouts = timeouts or dict()
+        self.timings = timings or dict()
         self.changed = False
 
     def register(self):
@@ -531,7 +531,7 @@ class BambooAgentController:
 
             retry(
                 available,
-                timeout=self.timeouts.get("authentication", 240.0),
+                timeout=self.timings.get("authentication_timeout", 240),
                 interval=1.0,
                 msg="agent not available after authentication",
             )
@@ -564,12 +564,17 @@ class BambooAgentController:
                     self.agent.remove_assignment(etype, eid)
             self.changed = True
 
-    def block_while_busy(self, timeout: Optional[float], interval: float):
+    def block_while_busy(self):
         def block():
             if self.agent.busy():
                 raise AgentBusy()
 
-        retry(block, timeout=timeout, interval=interval, msg="agent busy")
+        retry(
+            block,
+            timeout=self.timings.get("busy_timeout", None),
+            interval=self.timings.get("busy_polling_interval", 60),
+            msg="agent busy",
+        )
 
 
 def main():
@@ -579,10 +584,6 @@ def main():
     name = module.params.pop("name")
     assignments = module.params.pop("assignments")
     should_block_while_busy = module.params.pop("block_while_busy")
-    interval_busy_polling = module.params.pop("interval_busy_polling")
-    block_while_busy_timeout = (module.params["timeouts"] or dict()).pop(
-        "block_while_busy", None
-    )
 
     controller = BambooAgentController(
         agent=BambooAgent(
@@ -598,7 +599,7 @@ def main():
         controller.set_name(name)
         controller.update_assignments(controller.agent.resolve_assignments(assignments))
         if should_block_while_busy:
-            controller.block_while_busy(block_while_busy_timeout, interval_busy_polling)
+            controller.block_while_busy()
     except BambooAgentError as error:
         module.fail_json(msg=str(error))
 
