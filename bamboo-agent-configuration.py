@@ -92,7 +92,7 @@ author:
 
 seealso:
 - name: Bamboo REST API documentation
-  link: https://docs.atlassian.com/atlassian-bamboo/REST/
+  link: https://docs.atlassian.com/atlassian-bamboo/REST/latest
 """
 
 EXAMPLES = """
