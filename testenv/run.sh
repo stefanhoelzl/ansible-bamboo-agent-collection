@@ -16,6 +16,7 @@ tar -xzvf server/init-data.tar.gz -C server
 rm -rf ansible/project/library results
 mkdir -p ansible/project/library ansible/project/results
 cp ../bamboo-agent-configuration.py ansible/project/library
+cp playbook.yml ansible/project/playbook.yml
 
 # run test environment
 docker-compose up --build --abort-on-container-exit

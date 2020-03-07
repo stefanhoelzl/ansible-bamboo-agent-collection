@@ -1,3 +1,4 @@
 server/data/
 results/
 ansible/project/library
+ansible/project/playbook.yml
