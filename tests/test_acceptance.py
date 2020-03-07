@@ -67,7 +67,7 @@ class HttpServerMock:
 
 class BambooAgentAcceptanceTest(RequestTestCase):
     Home = BambooHome()
-    Arguments = dict(authentication=dict(user="", password=""))
+    Arguments = dict(credentials=dict(user="", password=""))
     Responses: List[Response] = list()
     ExpectedRequests: List[Request] = list()
     ExpectedResult = dict()

@@ -35,9 +35,9 @@ options:
         - path to bamboo-agent-home
         type: str
         required: true
-    authentication:
+    credentials:
         description:
-        - authentication information
+        - bamboo server authentication information
         required: false
         type: dict
         suboptions:
@@ -114,7 +114,7 @@ EXAMPLES = """
   bamboo-agent:
     host: https://bamboo-host
     home: /home/bamboo/bamboo-agent-home/
-    authentication:
+    credentials:
         user: "user"
         password: "{{ secret_password }}"
 - name: agent configuration
@@ -123,16 +123,39 @@ EXAMPLES = """
     home: /home/bamboo/bamboo-agent-home/
     name: "Agent Name"
     enabled: False
-    authentication:
+    credentials:
+        user: "user"
+        password: "{{ secret_password }}"
+- name: agent assignment
+  bamboo-agent:
+    host: https://bamboo-host
+    home: /home/bamboo/bamboo-agent-home/
+    assignments:
+    - type: project
+      key: PR
+    - type: plan
+      key: PR-PL
+    credentials:
+        user: "user"
+        password: "{{ secret_password }}"
+- name: block while agent is busy
+  bamboo-agent:
+    host: https://bamboo-host
+    home: /home/bamboo/bamboo-agent-home/
+    block_while_busy: true
+    timings:
+        busy_timoeut: 3600
+        busy_polling_interval: 120
+    credentials:
         user: "user"
         password: "{{ secret_password }}"
 - name: custom timeout
   bamboo-agent:
     host: https://bamboo-host
     home: /home/bamboo/bamboo-agent-home/
-    timeouts:
+    timings:
         authentication: 600
-    authentication:
+    credentials:
         user: "user"
         password: "{{ secret_password }}"
 """
@@ -184,7 +207,7 @@ ArgumentSpec = dict(
             key=dict(type=str, required=True),
         ),
     ),
-    authentication=dict(
+    credentials=dict(
         type=dict,
         required=True,
         suboptions=dict(
@@ -345,13 +368,13 @@ class BambooAgent:
         self,
         host: str,
         home: str,
-        authentication: Dict[str, str],
+        credentials: Dict[str, str],
         request_handler=HttpRequestHandler,
     ):
         self.home = home
         self.changed = False
         self.request_handler = request_handler(
-            host=host, auth=(authentication["user"], authentication["password"])
+            host=host, auth=(credentials["user"], credentials["password"])
         )
 
     @lru_cache(maxsize=2)
@@ -589,7 +612,7 @@ def main():
         agent=BambooAgent(
             host=module.params.pop("host"),
             home=module.params.pop("home"),
-            authentication=module.params.pop("authentication"),
+            credentials=module.params.pop("credentials"),
         ),
         **module.params,
     )

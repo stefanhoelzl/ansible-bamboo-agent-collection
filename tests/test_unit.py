@@ -151,7 +151,7 @@ def make_bamboo_agent(
     return BambooAgent(
         host="http://localhost",
         home=home or "",
-        authentication=dict(user="", password=""),
+        credentials=dict(user="", password=""),
         request_handler=request_handler or MockRequestHandler(),
     )
 
