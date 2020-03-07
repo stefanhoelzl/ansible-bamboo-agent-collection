@@ -35,13 +35,14 @@ A `Dockerfile` which specifies a development image is located in `.devcontainer`
 This can be used as a standalone container or with the [VS Code Remote Extension](https://code.visualstudio.com/docs/remote/remote-overview).
 
 ### Testing
-Acceptance and unit tests can be run with
+Integration and unit tests can be run with
 ```bash
 $ python tests
 ```
 
-In `testenv` is a environment with a real Bamboo server for testing defined, using [docker compose](https://docs.docker.com/compose/).
+In `testenv` is a environment with a real Bamboo server for acceptance testing defined,
+using [docker compose](https://docs.docker.com/compose/).
 It starts a Bamboo server, and Bamboo remote agent and an ansible control node in separate docker container, 
 runs a playbook on the ansible control node to configure the remote agent and checks if it was successfully.
 
-The test environment can be started with `./run.sh` from within the `testenv` directory. 
+The acceptance tests can be run via `./acceptance_tests.sh` from within the `testenv` directory. 

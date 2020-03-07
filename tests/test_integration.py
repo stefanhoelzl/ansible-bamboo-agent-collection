@@ -65,7 +65,7 @@ class HttpServerMock:
         return RequestHandler.Requests
 
 
-class BambooAgentAcceptanceTest(RequestTestCase):
+class BambooAgentIntegrationTest(RequestTestCase):
     Home = BambooHome()
     Arguments = dict(credentials=dict(user="", password=""))
     Responses: List[Response] = list()
@@ -98,7 +98,7 @@ class BambooAgentAcceptanceTest(RequestTestCase):
             arguments_file_path = Path(tempdir, "arguments.json")
             with open(arguments_file_path, mode="w+") as arguments_file:
                 arguments = {
-                    **BambooAgentAcceptanceTest.Arguments,
+                    **BambooAgentIntegrationTest.Arguments,
                     **self.Arguments,
                 }
                 json.dump(
@@ -127,7 +127,7 @@ class BambooAgentAcceptanceTest(RequestTestCase):
         return json.loads(process.stdout), self._HttpServer.requests
 
 
-class TestNewAgentRegistration(BambooAgentAcceptanceTest):
+class TestNewAgentRegistration(BambooAgentIntegrationTest):
     Uuid = "00000000-1111-2222-3333-444444444444"
     Home = BambooHome().temp_uuid(Uuid)
     ExpectChange = True
@@ -147,7 +147,7 @@ class TestNewAgentRegistration(BambooAgentAcceptanceTest):
     ]
 
 
-class TestErrorHandling(BambooAgentAcceptanceTest):
+class TestErrorHandling(BambooAgentIntegrationTest):
     Uuid = "00000000-1111-2222-3333-444444444444"
     Home = BambooHome().temp_uuid(Uuid)
     ExpectFailure = True
@@ -159,7 +159,7 @@ class TestErrorHandling(BambooAgentAcceptanceTest):
     ]
 
 
-class TestUnchanged(BambooAgentAcceptanceTest):
+class TestUnchanged(BambooAgentIntegrationTest):
     Arguments = dict(
         enabled=True, name="agent-name", assignments=[dict(type="plan", key="PL")]
     )
@@ -179,7 +179,7 @@ class TestUnchanged(BambooAgentAcceptanceTest):
     ]
 
 
-class TestAgentDisable(BambooAgentAcceptanceTest):
+class TestAgentDisable(BambooAgentIntegrationTest):
     Arguments = dict(enabled=False)
     Home = BambooHome().config(aid=1234)
     ExpectChange = True
@@ -195,7 +195,7 @@ class TestAgentDisable(BambooAgentAcceptanceTest):
     ]
 
 
-class TestSetAgentName(BambooAgentAcceptanceTest):
+class TestSetAgentName(BambooAgentIntegrationTest):
     Arguments = dict(name="new-name")
     Home = BambooHome().config(aid=1234)
     ExpectChange = True
@@ -211,7 +211,7 @@ class TestSetAgentName(BambooAgentAcceptanceTest):
     ]
 
 
-class TestAssignments(BambooAgentAcceptanceTest):
+class TestAssignments(BambooAgentIntegrationTest):
     Arguments = dict(
         assignments=[dict(type="plan", key="PL"), dict(type="project", key="PR")]
     )
@@ -242,7 +242,7 @@ class TestAssignments(BambooAgentAcceptanceTest):
     ]
 
 
-class TestBlockWhileBusy(BambooAgentAcceptanceTest):
+class TestBlockWhileBusy(BambooAgentIntegrationTest):
     Home = BambooHome().config(aid=1234)
     Arguments = dict(block_while_busy=True, timings=dict(interval_busy_polling=0))
     ExpectedRequests = [
@@ -257,7 +257,7 @@ class TestBlockWhileBusy(BambooAgentAcceptanceTest):
     ]
 
 
-class TestReturnValues(BambooAgentAcceptanceTest):
+class TestReturnValues(BambooAgentIntegrationTest):
     Home = BambooHome().config(aid=1234)
     ExpectedRequests = [
         templates.Pending.request(),
