@@ -1,10 +1,11 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 # Copyright: (c) 2020, Stefan Hoelzl <stefan.hoelzl@posteo.de>
 # GNU General Public License v3.0+ (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ANSIBLE_METADATA = {
-    "metadata_version": "0.1",
+    "metadata_version": "1.1",
     "status": ["preview"],
     "supported_by": "community",
 }
@@ -311,13 +312,18 @@ class BambooAgent:
         )
         self._cached_info = None
 
-    def _get_info(self, force_update=False):
-        if self._cached_info is None or force_update:
-            agents = self.request(Request("/rest/api/latest/agent/")).content
-            self._cached_info = next(
-                (agent for agent in agents if agent["id"] == self.id()), None
+    @lru_cache(maxsize=1)
+    def _get_info(self):
+        agents = self.request(Request("/rest/api/latest/agent/")).content
+        return next((agent for agent in agents if agent["id"] == self.id()), None)
+
+    @lru_cache(maxsize=2)
+    def _search_assignments(self, etype):
+        return self.request(
+            Request(
+                f"/rest/api/latest/agent/assignment/search?searchTerm=&executorType=AGENT&entityType={etype}"
             )
-        return self._cached_info
+        ).content["searchResults"]
 
     def request(self, request: Request, response_code: int = 200) -> Response:
         response = self.request_handler(request)
@@ -366,7 +372,8 @@ class BambooAgent:
         aid = self.id()
         if aid is None:
             return False
-        return self._get_info(force_update=True) is not None
+        self._get_info.cache_clear()
+        return self._get_info() is not None
 
     def authenticate(self):
         uuid = self.uuid()
@@ -445,21 +452,13 @@ class BambooAgent:
         if assignments is None:
             return None
 
-        @lru_cache(maxsize=2)
-        def cached_search(etype):
-            return self.request(
-                Request(
-                    f"/rest/api/latest/agent/assignment/search?searchTerm=&executorType=AGENT&entityType={etype}"
-                )
-            ).content["searchResults"]
-
         resolved = dict()
         for assignment in assignments:
             key, etype = assignment["key"], assignment["type"].upper()
             eid = next(
                 (
                     result["searchEntity"]["id"]
-                    for result in cached_search(etype)
+                    for result in self._search_assignments(etype)
                     if result["id"] == key
                 ),
                 None,
