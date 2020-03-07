@@ -7,11 +7,10 @@ from functools import partialmethod
 from contextlib import contextmanager
 from tempfile import TemporaryDirectory
 from typing import List, Optional
-from proxy import Request, Response, Method
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from . import templates
-from .proxy import Method, Request, Response
+from plugins.modules.configuration import Method, Request, Response
 from tests import IpAddress, RequestTestCase, BambooHome, ActionResponse
 
 
@@ -115,7 +114,7 @@ class BambooAgentIntegrationTest(RequestTestCase):
             process = subprocess.run(
                 [
                     sys.executable,
-                    "bamboo-agent-configuration.py",
+                    "plugins/modules/configuration.py",
                     str(arguments_file_path),
                 ],
                 stdout=subprocess.PIPE,

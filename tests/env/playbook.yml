@@ -9,15 +9,15 @@
   tasks:
   - name: Query pending agents
     uri:
-        url: "http://bamboo-server:8085/rest/api/latest/agent/?pending=true"
-        method: GET
-        force_basic_auth: yes
-        user: "admin"
-        password: "admin"
-        status_code: 200
-        dest: "/results/pending.json"
+      url: "http://bamboo-server:8085/rest/api/latest/agent/?pending=true"
+      method: GET
+      force_basic_auth: yes
+      user: "admin"
+      password: "admin"
+      status_code: 200
+      dest: "/results/pending.json"
   - name: Register bamboo agent
-    bamboo-agent-configuration:
+    stefanhoelzl.bamboo_agent.configuration:
       host: "{{ bamboo_server }}"
       home: "{{ bamboo_home }}"
       credentials:
@@ -25,15 +25,15 @@
         password: "{{ bamboo_password }}"
   - name: Query registered agents
     uri:
-        url: "http://bamboo-server:8085/rest/api/latest/agent/"
-        method: GET
-        force_basic_auth: yes
-        user: "admin"
-        password: "admin"
-        status_code: 200
-        dest: "/results/registration.json"
+      url: "http://bamboo-server:8085/rest/api/latest/agent/"
+      method: GET
+      force_basic_auth: yes
+      user: "admin"
+      password: "admin"
+      status_code: 200
+      dest: "/results/registration.json"
   - name: Disable agent
-    bamboo-agent-configuration:
+    stefanhoelzl.bamboo_agent.configuration:
       host: "{{ bamboo_server }}"
       home: "{{ bamboo_home }}"
       enabled: false
@@ -42,15 +42,15 @@
         password: "{{ bamboo_password }}"
   - name: Query agent disabled
     uri:
-        url: "http://bamboo-server:8085/rest/api/latest/agent/"
-        method: GET
-        force_basic_auth: yes
-        user: "admin"
-        password: "admin"
-        status_code: 200
-        dest: "/results/disabled.json"
+      url: "http://bamboo-server:8085/rest/api/latest/agent/"
+      method: GET
+      force_basic_auth: yes
+      user: "admin"
+      password: "admin"
+      status_code: 200
+      dest: "/results/disabled.json"
   - name: Set bamboo agent name
-    bamboo-agent-configuration:
+    stefanhoelzl.bamboo_agent.configuration:
       host: "{{ bamboo_server }}"
       home: "{{ bamboo_home }}"
       name: "new-name"
@@ -59,15 +59,15 @@
         password: "{{ bamboo_password }}"
   - name: Query changed name
     uri:
-        url: "http://bamboo-server:8085/rest/api/latest/agent/"
-        method: GET
-        force_basic_auth: yes
-        user: "admin"
-        password: "admin"
-        status_code: 200
-        dest: "/results/changed_name.json"
+      url: "http://bamboo-server:8085/rest/api/latest/agent/"
+      method: GET
+      force_basic_auth: yes
+      user: "admin"
+      password: "admin"
+      status_code: 200
+      dest: "/results/changed_name.json"
   - name: Assignments
-    bamboo-agent-configuration:
+    stefanhoelzl.bamboo_agent.configuration:
       host: "{{ bamboo_server }}"
       home: "{{ bamboo_home }}"
       assignments:
@@ -82,7 +82,7 @@
       content: "{{ current_state | to_json }}"
       dest: "/results/current_state.json"
   - name: No changes
-    bamboo-agent-configuration:
+    stefanhoelzl.bamboo_agent.configuration:
       host: "{{ bamboo_server }}"
       home: "{{ bamboo_home }}"
       name: "new-name"
@@ -95,10 +95,10 @@
         password: "{{ bamboo_password }}"
   - name: Query no changes
     uri:
-        url: "http://bamboo-server:8085/rest/api/latest/agent/"
-        method: GET
-        force_basic_auth: yes
-        user: "admin"
-        password: "admin"
-        status_code: 200
-        dest: "/results/unchanged.json"
+      url: "http://bamboo-server:8085/rest/api/latest/agent/"
+      method: GET
+      force_basic_auth: yes
+      user: "admin"
+      password: "admin"
+      status_code: 200
+      dest: "/results/unchanged.json"

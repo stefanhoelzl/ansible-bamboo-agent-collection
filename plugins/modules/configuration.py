@@ -12,7 +12,7 @@ ANSIBLE_METADATA = {
 
 DOCUMENTATION = """
 ---
-module: bamboo-agent
+module: stefanhoelzl.bamboo_agent.configuration
 
 short_description: bamboo agent configuration
 
@@ -111,14 +111,14 @@ seealso:
 
 EXAMPLES = """
 - name: only agent registration
-  bamboo-agent:
+  stefanhoelzl.bamboo_agent.configuration:
     host: https://bamboo-host
     home: /home/bamboo/bamboo-agent-home/
     credentials:
         user: "user"
         password: "{{ secret_password }}"
 - name: agent configuration
-  bamboo-agent:
+  stefanhoelzl.bamboo_agent.configuration:
     host: https://bamboo-host
     home: /home/bamboo/bamboo-agent-home/
     name: "Agent Name"
@@ -127,7 +127,7 @@ EXAMPLES = """
         user: "user"
         password: "{{ secret_password }}"
 - name: agent assignment
-  bamboo-agent:
+  stefanhoelzl.bamboo_agent.configuration:
     host: https://bamboo-host
     home: /home/bamboo/bamboo-agent-home/
     assignments:
@@ -139,7 +139,7 @@ EXAMPLES = """
         user: "user"
         password: "{{ secret_password }}"
 - name: block while agent is busy
-  bamboo-agent:
+  stefanhoelzl.bamboo_agent.configuration:
     host: https://bamboo-host
     home: /home/bamboo/bamboo-agent-home/
     block_while_busy: true
@@ -150,7 +150,7 @@ EXAMPLES = """
         user: "user"
         password: "{{ secret_password }}"
 - name: custom timeout
-  bamboo-agent:
+  stefanhoelzl.bamboo_agent.configuration:
     host: https://bamboo-host
     home: /home/bamboo/bamboo-agent-home/
     timings:

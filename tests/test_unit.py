@@ -7,7 +7,7 @@ from typing import List, Optional
 from contextlib import contextmanager
 from tests import RequestTestCase, IpAddress, BambooHome
 from . import templates
-from .proxy import (
+from plugins.modules.configuration import (
     BambooAgentController,
     BambooAgent,
     Request,

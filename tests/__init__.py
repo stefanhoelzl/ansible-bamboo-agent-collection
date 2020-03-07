@@ -3,10 +3,10 @@ import socket
 import unittest
 import textwrap
 from pathlib import Path
-from .proxy import Request, Response
 from typing import List, Optional, Callable
 from contextlib import contextmanager
 from tempfile import TemporaryDirectory
+from plugins.modules.configuration import Request, Response
 
 IpAddress = socket.gethostbyname(socket.gethostname())
 

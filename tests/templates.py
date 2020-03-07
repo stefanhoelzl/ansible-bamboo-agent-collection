@@ -1,4 +1,4 @@
-from .proxy import Request, Response, Method
+from plugins.modules.configuration import Request, Response, Method
 from . import ActionResponse
 
 

@@ -1,6 +1,6 @@
-# Ansible module for bamboo agent configuration
+# Ansible collection for bamboo agent configuration
 
-This Ansible module for bamboo remote agent configuration 
+Ansible collection for bamboo remote agent configuration 
 using the [REST API](https://docs.atlassian.com/atlassian-bamboo/REST/6.9.2).
 
 ## Features
@@ -12,17 +12,28 @@ using the [REST API](https://docs.atlassian.com/atlassian-bamboo/REST/6.9.2).
 [x] no dependencies
 
 ## Usage
-Add `bamboo-agent-configuration.py` to your [modules path](https://docs.ansible.com/ansible/latest/dev_guide/developing_locally.html)
-or add a new path library in your `ansible.cfg` where `bamboo-agent-configuration.py` is located
-```ini
-[defaults]
-library = /path/to/library
+checkout the repository
+```bash
+$ git clone git clone https://github.com/stefanhoelzl/ansible-bamboo-agent-collection.git
+$ cd ansible-bamboo-agent-collection
 ```
+
+build the collection
+```bash
+$ ./build.sh
+```
+
+install the collection
+```bash
+$ ansible-galaxy collection install release/stefanhoelzl.bamboo_agent-${VERSION}.tar.gz
+```
+
+for more informations how to install ansible collections see the [documentation](https://docs.ansible.com/ansible/latest/user_guide/collections_using.html#installing-collections-with-ansible-galaxy).
 
 adding a task to your playbook
 ```yaml
 - name: configure bamboo remote agent
-  bamboo-agent-configuration:
+  stefanhoelzl.bamboo_agent.configuration:
     host: "http://atlassian.my-domain.com/bamboo/"
     home: "/home/bamboo/bamboo-agent-home"
     enabled: false
@@ -38,8 +49,12 @@ adding a task to your playbook
 ## Development
 ### Dependencies
 The only required dependencies are `ansible` and `black` (enforces code formatting policy).
+Optional can `docker-compose` be used to run the acceptance test suite.
 A `Dockerfile` which specifies a development image is located in `.devcontainer`.
 This can be used as a standalone container or with the [VS Code Remote Extension](https://code.visualstudio.com/docs/remote/remote-overview).
+
+### Packaging
+Run `./build.sh` to package the collection. The package can be found in the `release` directory.
 
 ### Testing
 Integration and unit tests can be run with
@@ -47,9 +62,9 @@ Integration and unit tests can be run with
 $ python tests
 ```
 
-In `testenv` is a environment with a real Bamboo server for acceptance testing defined,
+In `tests/env` is a environment with a real Bamboo server for acceptance testing defined,
 using [docker compose](https://docs.docker.com/compose/).
-It starts a Bamboo server, and Bamboo remote agent and an ansible control node in separate docker container, 
+It starts a Bamboo server, and Bamboo remote agent and an ansible control node in separate docker containers, 
 runs a playbook on the ansible control node to configure the remote agent and checks if it was successfully.
 
-The acceptance tests can be run via `./acceptance_tests.sh` from within the `testenv` directory. 
+The acceptance test suite can be run via `tests/acceptance_tests.sh`.

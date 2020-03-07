@@ -1,0 +1,13 @@
+namespace: stefanhoelzl
+name: bamboo_agent
+version: 0.1.0
+readme: README.md
+license_file: LICENSE
+authors:
+- Stefan Hoelzl <@stefanhoelzl>
+description: collection to configure a remote bamboo agent
+tags: [bamboo, agent, ci]
+repository: http://www.github.com/stefanhoelzl/ansible-bamboo-agent-collection
+documentation: http://www.github.com/stefanhoelzl/ansible-bamboo-agent-collection/blob/master/README.md
+homepage: http://www.github.com/stefanhoelzl/ansible-bamboo-agent-collection
+issues: http://www.github.com/stefanhoelzl/ansible-bamboo-agent-collection/issues
