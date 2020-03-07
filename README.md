@@ -8,6 +8,8 @@ using the [REST API](https://docs.atlassian.com/atlassian-bamboo/REST/6.9.2).
 [x] [enable/disable an agent](https://confluence.atlassian.com/bamboo/disabling-or-deleting-an-agent-289277174.html)
 [x] update agent name (as shown in Bamboo UI)
 [x] [dedicating an agent](https://confluence.atlassian.com/bamboo/dedicating-an-agent-629015108.html)
+[x] wait until agent is not busy
+[x] no dependencies
 
 ## Usage
 Add `bamboo-agent-configuration.py` to your [modules path](https://docs.ansible.com/ansible/latest/dev_guide/developing_locally.html)
@@ -23,7 +25,12 @@ adding a task to your playbook
   bamboo-agent-configuration:
     host: "http://atlassian.my-domain.com/bamboo/"
     home: "/home/bamboo/bamboo-agent-home"
-    authentication: # bamboo credentials
+    enabled: false
+    assignments:
+    - type: project
+      key: PR
+    block_while_busy: true
+    credentials:
       user: "admin"
       password: "admin"
 ```
