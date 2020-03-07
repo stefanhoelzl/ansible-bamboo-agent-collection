@@ -8,8 +8,7 @@ Request = bamboo_agent_configuration.Request
 HttpRequestHandler = bamboo_agent_configuration.HttpRequestHandler
 timeout = bamboo_agent_configuration.timeout
 BambooAgentError = bamboo_agent_configuration.BambooAgentError
-ServerConnectionError = bamboo_agent_configuration.ServerConnectionError
-AgentConfigurationError = bamboo_agent_configuration.AgentConfigurationError
+ServerCommunicationError = bamboo_agent_configuration.ServerCommunicationError
 MissingUuid = bamboo_agent_configuration.MissingUuid
 SelfRecoverableBambooAgentError = (
     bamboo_agent_configuration.SelfRecoverableBambooAgentError

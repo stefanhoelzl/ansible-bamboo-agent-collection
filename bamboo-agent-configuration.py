@@ -123,7 +123,7 @@ EXAMPLES = """
         password: "{{ secret_password }}"
 """
 
-RETURN = ""
+RETURN = " # "
 
 import re
 import ssl
@@ -172,7 +172,7 @@ class BambooAgentError(Exception):
     pass
 
 
-class RecoverableBambooAgentError(Exception):
+class RecoverableBambooAgentError(BambooAgentError):
     pass
 
 
@@ -180,8 +180,13 @@ class SelfRecoverableBambooAgentError(RecoverableBambooAgentError):
     pass
 
 
-class ServerConnectionError(RecoverableBambooAgentError):
-    pass
+class ServerCommunicationError(RecoverableBambooAgentError):
+    def __init__(self, request: "Request", response: "Response"):
+        super().__init__(
+            f"server communication faild (HTTP {response.status_code}): {request.method} {request.path} content={request.content}"
+        )
+        self.request = request
+        self.response = response
 
 
 class AgentConfigurationError(RecoverableBambooAgentError):
@@ -189,11 +194,16 @@ class AgentConfigurationError(RecoverableBambooAgentError):
 
 
 class MissingUuid(SelfRecoverableBambooAgentError):
-    pass
+    def __init__(self, home: str):
+        super().__init__(f"No UUID found in {home}")
+        self.home = home
 
 
 class AssignmentNotFound(BambooAgentError):
-    pass
+    def __init__(self, etype: str, key: str):
+        super().__init__(f"Assignment {etype} {key} not found!")
+        self.etype = etype
+        self.key = key
 
 
 class Method(Enum):
@@ -250,15 +260,13 @@ class Response(ContentContainer):
             self.header["Content-Length"] = len(bytes(self))
 
 
-class NoRedirection(urlrequest.HTTPErrorProcessor):
+class ForwardHttpError(urlrequest.HTTPErrorProcessor):
     def http_response(self, request, response):
-        if response.code == 302:
-            return response
-        return super().http_response(request, response)
+        return response
 
 
 urlopen_no_redirect = urlrequest.build_opener(
-    NoRedirection(), urlrequest.HTTPSHandler(context=ssl.SSLContext())
+    ForwardHttpError(), urlrequest.HTTPSHandler(context=ssl.SSLContext())
 ).open
 
 
@@ -286,14 +294,14 @@ class HttpRequestHandler:
             return Response(response.read(), status_code=response.getcode())
 
 
-def timeout(query, timeout: float, interval: float = 1):
+def timeout(query, timeout: float, interval: float = 1, msg: Optional[str] = None):
     start = time.time()
     while True:
         try:
             return query()
         except SelfRecoverableBambooAgentError:
             if time.time() > start + timeout:
-                raise TimeoutError()
+                raise TimeoutError(f"Timeout: {msg or ''} ({timeout:.2f} sec)")
         time.sleep(interval)
 
 
@@ -328,9 +336,7 @@ class BambooAgent:
     def request(self, request: Request, response_code: int = 200) -> Response:
         response = self.request_handler(request)
         if response.status_code != response_code:
-            raise ServerConnectionError(
-                f"{response.status_code}: {request.method} {request.path}"
-            )
+            raise ServerCommunicationError(request, response)
         return response
 
     def uuid(self) -> Optional[str]:
@@ -378,7 +384,7 @@ class BambooAgent:
     def authenticate(self):
         uuid = self.uuid()
         if uuid is None:
-            raise MissingUuid()
+            raise MissingUuid(self.home)
         self.request(
             Request(
                 f"/rest/api/latest/agent/authentication/{uuid}", method=Method.Put,
@@ -464,7 +470,7 @@ class BambooAgent:
                 None,
             )
             if eid is None:
-                raise AssignmentNotFound()
+                raise AssignmentNotFound(etype, key)
             resolved[eid] = etype
         return resolved
 
@@ -485,7 +491,11 @@ class BambooAgentController:
                 if not self.agent.available():
                     raise SelfRecoverableBambooAgentError()
 
-            timeout(available, timeout=self.timeouts.get("authentication", 240.0))
+            timeout(
+                available,
+                timeout=self.timeouts.get("authentication", 240.0),
+                msg="agent not available after authentication",
+            )
             self.changed = True
 
     def set_enabled(self, enabled: Optional[bool]):
@@ -531,10 +541,13 @@ def main():
         ),
         **module.params,
     )
-    controller.register()
-    controller.set_enabled(enabled)
-    controller.set_name(name)
-    controller.update_assignments(controller.agent.resolve_assignments(assignments))
+    try:
+        controller.register()
+        controller.set_enabled(enabled)
+        controller.set_name(name)
+        controller.update_assignments(controller.agent.resolve_assignments(assignments))
+    except BambooAgentError as error:
+        module.fail_json(msg=str(error))
 
     module.exit_json(changed=controller.changed)
 

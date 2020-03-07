@@ -15,7 +15,7 @@ from .proxy import (
     Method,
     HttpRequestHandler,
     timeout,
-    ServerConnectionError,
+    ServerCommunicationError,
     MissingUuid,
     SelfRecoverableBambooAgentError,
     AssignmentNotFound,
@@ -154,14 +154,14 @@ class TestRequest(RequestTestCase):
         response = Response(status_code=204)
         rh = MockRequestHandler(responses=[response])
         agent = make_bamboo_agent(rh)
-        self.assertRaises(ServerConnectionError, lambda: agent.request(Request("/")))
+        self.assertRaises(ServerCommunicationError, lambda: agent.request(Request("/")))
 
     def test_expect_custom_response_code(self):
         response = Response(status_code=200)
         rh = MockRequestHandler(responses=[response])
         agent = make_bamboo_agent(rh)
         self.assertRaises(
-            ServerConnectionError,
+            ServerCommunicationError,
             lambda: agent.request(Request("/"), response_code=204),
         )
 

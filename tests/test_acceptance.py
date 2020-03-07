@@ -72,6 +72,7 @@ class BambooAgentAcceptanceTest(RequestTestCase):
     ExpectedRequests: List[Request] = list()
     ExpectedResult = dict()
     ExpectChange = False
+    ExpectFailure = False
 
     _HttpServer = HttpServerMock()
 
@@ -80,12 +81,17 @@ class BambooAgentAcceptanceTest(RequestTestCase):
         setattr(cls, f"test_{cls.__name__}", cls._test)
 
     def _test(self):
-        result, requests = self._run_module()
-        self.assert_requests(requests, *self.ExpectedRequests)
-        self.assertEqual(result.pop("changed"), self.ExpectChange)
-        self._check_result(result)
+        result, requests = self._execute_module_in_process()
+        del result["invocation"]
 
-    def _run_module(self):
+        self.assert_requests(requests, *self.ExpectedRequests)
+        if self.ExpectFailure:
+            self.assertTrue(result["failed"])
+        else:
+            self.assertEqual(result.pop("changed"), self.ExpectChange)
+            self.assertEqual(result, self.ExpectedResult)
+
+    def _execute_module_in_process(self):
         with TemporaryDirectory() as tempdir:
             self._HttpServer.reset(self.Responses)
             arguments_file_path = Path(tempdir, "arguments.json")
@@ -115,13 +121,9 @@ class BambooAgentAcceptanceTest(RequestTestCase):
                 stderr=subprocess.PIPE,
             )
 
-        if process.returncode:
+        if process.returncode and not self.ExpectFailure:
             raise RuntimeError(process.returncode, process.stdout, process.stderr)
         return json.loads(process.stdout), self._HttpServer.requests
-
-    def _check_result(self, result):
-        del result["invocation"]
-        self.assertEqual(result, self.ExpectedResult)
 
 
 class TestNewAgentRegistration(BambooAgentAcceptanceTest):
@@ -141,6 +143,18 @@ class TestNewAgentRegistration(BambooAgentAcceptanceTest):
             .create(TestNewAgentRegistration.Home.path)
         ),
         templates.Agents.response([dict(id=1234, enabled=True)]),
+    ]
+
+
+class TestErrorHandling(BambooAgentAcceptanceTest):
+    Uuid = "00000000-1111-2222-3333-444444444444"
+    Home = BambooHome().temp_uuid(Uuid)
+    ExpectFailure = True
+    ExpectedRequests = [
+        templates.Pending.request(),
+    ]
+    Responses = [
+        ActionResponse(status_code=400),
     ]
 
 
