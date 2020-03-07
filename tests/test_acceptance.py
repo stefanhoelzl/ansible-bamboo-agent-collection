@@ -89,7 +89,8 @@ class BambooAgentAcceptanceTest(RequestTestCase):
             self.assertTrue(result["failed"])
         else:
             self.assertEqual(result.pop("changed"), self.ExpectChange)
-            self.assertEqual(result, self.ExpectedResult)
+        for key, value in self.ExpectedResult.items():
+            self.assertEqual(result[key], value)
 
     def _execute_module_in_process(self):
         with TemporaryDirectory() as tempdir:
@@ -239,4 +240,21 @@ class TestAssignments(BambooAgentAcceptanceTest):
         templates.AddAssignment.response(),
         templates.RemoveAssignment.response(),
     ]
+
+
+class TestReturnValues(BambooAgentAcceptanceTest):
+    Home = BambooHome().config(aid=1234)
+    ExpectedRequests = [
+        templates.Pending.request(),
+        templates.Agents.request(),
+    ]
+    Responses = [
+        ActionResponse([]),
+        templates.Agents.response(
+            [dict(id=1234, name="agent-name", enabled=True, busy=False, active=True)]
+        ),
+    ]
+    ExpectedResult = dict(
+        id=1234, name="agent-name", enabled=True, busy=False, active=True
+    )
 

@@ -25,6 +25,8 @@ services:
     init: true
     entrypoint: ./runAgent.sh http://172.1.0.100:8085
     hostname: bamboo-agent
+    volumes:
+    - ./results:/results
     networks:
       internal:
         aliases:
@@ -35,7 +37,6 @@ services:
     command: ["python", "wait-for-http.py", "http://bamboo-server:8085", "ansible-playbook", "playbook.yml"]
     volumes:
     - ./ansible/project:/project
-    - ./results:/results
     networks:
       internal:
         ipv4_address: 172.1.0.99

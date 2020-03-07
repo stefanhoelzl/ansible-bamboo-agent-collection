@@ -123,7 +123,23 @@ EXAMPLES = """
         password: "{{ secret_password }}"
 """
 
-RETURN = " # "
+RETURN = """
+id:
+    type: int
+    returned: success
+name:
+    type: str
+    returned: success
+active:
+    type: bool
+    returned: success
+enabled:
+    type: bool
+    returned: success
+active:
+    type: bool
+    returned: success
+"""
 
 import re
 import ssl
@@ -320,11 +336,6 @@ class BambooAgent:
         )
         self._cached_info = None
 
-    @lru_cache(maxsize=1)
-    def _get_info(self):
-        agents = self.request(Request("/rest/api/latest/agent/")).content
-        return next((agent for agent in agents if agent["id"] == self.id()), None)
-
     @lru_cache(maxsize=2)
     def _search_assignments(self, etype):
         return self.request(
@@ -332,6 +343,11 @@ class BambooAgent:
                 f"/rest/api/latest/agent/assignment/search?searchTerm=&executorType=AGENT&entityType={etype}"
             )
         ).content["searchResults"]
+
+    @lru_cache(maxsize=1)
+    def info(self):
+        agents = self.request(Request("/rest/api/latest/agent/")).content
+        return next((agent for agent in agents if agent["id"] == self.id()), None)
 
     def request(self, request: Request, response_code: int = 200) -> Response:
         response = self.request_handler(request)
@@ -378,8 +394,8 @@ class BambooAgent:
         aid = self.id()
         if aid is None:
             return False
-        self._get_info.cache_clear()
-        return self._get_info() is not None
+        self.info.cache_clear()
+        return self.info() is not None
 
     def authenticate(self):
         uuid = self.uuid()
@@ -393,7 +409,7 @@ class BambooAgent:
         )
 
     def enabled(self) -> bool:
-        return self._get_info()["enabled"]
+        return self.info()["enabled"]
 
     def disable(self):
         self.request(
@@ -414,7 +430,7 @@ class BambooAgent:
         )
 
     def name(self) -> str:
-        return self._get_info()["name"]
+        return self.info()["name"]
 
     def set_name(self, name: str):
         self.request(
@@ -549,7 +565,7 @@ def main():
     except BambooAgentError as error:
         module.fail_json(msg=str(error))
 
-    module.exit_json(changed=controller.changed)
+    module.exit_json(changed=controller.changed, **controller.agent.info())
 
 
 if __name__ == "__main__":

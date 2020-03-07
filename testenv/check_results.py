@@ -7,21 +7,18 @@ class ResultChecker:
         self.tasks = 0
         self.changed = 0
 
-    def task(self, _=None, changed=True):
-        self.tasks += 1
-        self.changed += 1 if changed else 0
-
     def check(self, filename: str, expected: dict, changed=True):
-        self.task(changed=changed)
-        self.tasks += 1
-        self.changed += 1 if changed else 0
+        self.tasks += 2
+        self.changed += 2 if changed else 0
 
         data = json.load(open(f"results/{ filename }"))
-        assert len(data) == 1
+        if isinstance(data, list):
+            assert len(data) == 1
+            data = data[0]
         for key, expected_value in expected.items():
             assert (
-                expected_value == data[0][key]
-            ), f"unexpected value '{data[0][key]}' for key '{key}' ({filename})"
+                expected_value == data[key]
+            ), f"unexpected value '{data[key]}' for key '{key}' ({filename})"
 
     def check_statistic(self, outfile: str):
         output = Path(f"results/{outfile}").read_text()
@@ -38,6 +35,10 @@ checker.check(
 )
 checker.check("disabled.json", dict(enabled=False))
 checker.check("changed_name.json", dict(name="new-name"))
-checker.task("assignments")
+checker.check(
+    "current_state.json",
+    dict(name="new-name", enabled=False, busy=False, active=True),
+    changed=True,
+)
 checker.check("unchanged.json", dict(name="new-name", enabled=False), changed=False)
 checker.check_statistic("ansible.out")

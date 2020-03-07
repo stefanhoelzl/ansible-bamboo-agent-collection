@@ -167,6 +167,30 @@ class TestRequest(RequestTestCase):
 
 
 class TestBambooAgent(RequestTestCase):
+    def test_info(self):
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(
+                home=home,
+                request_handler=MockRequestHandler(
+                    responses=[templates.Agents.response([dict(id=1234, key="value")])]
+                ),
+            )
+            self.assertEqual(agent.info(), dict(id=1234, key="value"))
+
+    def test_info_caching(self):
+        request_handler = MockRequestHandler(
+            responses=[
+                templates.Agents.response(
+                    [dict(id=1234, enabled=True, name="agent-name")]
+                )
+            ]
+        )
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(home=home, request_handler=request_handler,)
+            agent.info()
+            agent.info()
+        self.assert_requests(request_handler.requests, templates.Agents.request())
+
     def test_uuid_is_none(self):
         with BambooHome().temp() as home:
             agent = make_bamboo_agent(home=home)
@@ -379,22 +403,6 @@ class TestBambooAgent(RequestTestCase):
             AssignmentNotFound,
             partial(agent.resolve_assignments, [dict(type="project", key="AA")],),
         )
-
-    def test_caching(self):
-        with BambooHome().config(aid=1234).temp() as home:
-            agent = make_bamboo_agent(
-                home=home,
-                request_handler=MockRequestHandler(
-                    responses=[
-                        templates.Agents.response(
-                            [dict(id=1234, enabled=True, name="agent-name")]
-                        )
-                    ]
-                ),
-            )
-            self.assertTrue(agent.available())
-            self.assertTrue(agent.enabled())
-            self.assertEqual(agent.name(), "agent-name")
 
 
 def make_bamboo_agent_controller(

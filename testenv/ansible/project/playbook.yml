@@ -8,8 +8,7 @@
     bamboo_password: "admin"
   tasks:
   - name: Query pending agents
-    local_action: uri
-    args:
+    uri:
         url: "http://bamboo-server:8085/rest/api/latest/agent/authentication?pending=true"
         method: GET
         force_basic_auth: yes
@@ -25,8 +24,7 @@
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"
   - name: Query registered agents
-    local_action: uri
-    args:
+    uri:
         url: "http://bamboo-server:8085/rest/api/latest/agent/"
         method: GET
         force_basic_auth: yes
@@ -43,8 +41,7 @@
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"
   - name: Query agent disabled
-    local_action: uri
-    args:
+    uri:
         url: "http://bamboo-server:8085/rest/api/latest/agent/"
         method: GET
         force_basic_auth: yes
@@ -61,8 +58,7 @@
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"
   - name: Query changed name
-    local_action: uri
-    args:
+    uri:
         url: "http://bamboo-server:8085/rest/api/latest/agent/"
         method: GET
         force_basic_auth: yes
@@ -80,6 +76,11 @@
       authentication:
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"
+    register: current_state
+  - name: save current state
+    copy:
+      content: "{{ current_state | to_json }}"
+      dest: "/results/current_state.json"
   - name: No changes
     bamboo-agent-configuration:
       host: "{{ bamboo_server }}"
@@ -93,8 +94,7 @@
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"
   - name: Query no changes
-    local_action: uri
-    args:
+    uri:
         url: "http://bamboo-server:8085/rest/api/latest/agent/"
         method: GET
         force_basic_auth: yes

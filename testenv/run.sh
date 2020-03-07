@@ -18,7 +18,7 @@ mkdir -p ansible/project/library ansible/project/results
 cp ../bamboo-agent-configuration.py ansible/project/library
 
 # run test environment
-docker-compose up --abort-on-container-exit
+docker-compose up --build --abort-on-container-exit
 docker-compose logs ansible > results/ansible.out
 
 # check results
