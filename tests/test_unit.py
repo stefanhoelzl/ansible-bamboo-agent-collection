@@ -14,37 +14,52 @@ from .proxy import (
     Response,
     Method,
     HttpRequestHandler,
-    timeout,
+    retry,
     ServerCommunicationError,
     MissingUuid,
     SelfRecoverableBambooAgentError,
     AssignmentNotFound,
+    AgentBusy,
 )
 
 
-class TestTimeout(TestCase):
+class TestRetry(TestCase):
     def test_returns_query_result(self):
-        self.assertTrue(timeout(Mock(return_value=True), timeout=0))
+        self.assertTrue(retry(Mock(return_value=True), timeout=0, interval=0))
 
     def test_raise(self):
         self.assertRaises(
             TimeoutError,
             partial(
-                timeout, Mock(side_effect=SelfRecoverableBambooAgentError), timeout=0
+                retry,
+                Mock(side_effect=SelfRecoverableBambooAgentError()),
+                timeout=0,
+                interval=0,
             ),
         )
 
     def test_retry(self):
         self.assertTrue(
-            timeout(
-                Mock(side_effect=[SelfRecoverableBambooAgentError, True]), timeout=0.1
+            retry(
+                Mock(side_effect=[SelfRecoverableBambooAgentError(), True]),
+                timeout=0.1,
+                interval=0,
             )
         )
 
     def test_interval(self):
-        mock = Mock(side_effect=[SelfRecoverableBambooAgentError] * 3)
+        mock = Mock(side_effect=[SelfRecoverableBambooAgentError()] * 3)
         self.assertRaises(
-            TimeoutError, partial(timeout, mock, timeout=0.02, interval=0.01)
+            TimeoutError, partial(retry, mock, timeout=0.02, interval=0.01)
+        )
+
+    def test_no_timeout(self):
+        self.assertTrue(
+            retry(
+                Mock(side_effect=[SelfRecoverableBambooAgentError(), True]),
+                timeout=None,
+                interval=0,
+            )
         )
 
 
@@ -293,18 +308,6 @@ class TestBambooAgent(RequestTestCase):
             )
             self.assertTrue(agent.enabled())
 
-    def test_not_enabled(self):
-        with BambooHome().config(aid=1234).temp() as home:
-            agent = make_bamboo_agent(
-                home=home,
-                request_handler=MockRequestHandler(
-                    responses=[
-                        templates.Agents.response([dict(id=1234, enabled=False)])
-                    ]
-                ),
-            )
-            self.assertFalse(agent.enabled())
-
     def test_disable(self):
         rh = MockRequestHandler(responses=[templates.Disable.response()])
         with BambooHome().config(aid=1234).temp() as home:
@@ -318,6 +321,30 @@ class TestBambooAgent(RequestTestCase):
             agent = make_bamboo_agent(home=home, request_handler=rh)
             agent.enable()
         self.assert_requests(rh.requests, templates.Enable.request(agent_id=1234))
+
+    def test_busy(self):
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(
+                home=home,
+                request_handler=MockRequestHandler(
+                    responses=[templates.Agents.response([dict(id=1234, busy=True)])]
+                ),
+            )
+            self.assertTrue(agent.busy())
+
+    def test_busy_no_caching(self):
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(
+                home=home,
+                request_handler=MockRequestHandler(
+                    responses=[
+                        templates.Agents.response([dict(id=1234, busy=True)]),
+                        templates.Agents.response([dict(id=1234, busy=False)]),
+                    ]
+                ),
+            )
+            self.assertTrue(agent.busy())
+            self.assertFalse(agent.busy())
 
     def test_name(self):
         rh = MockRequestHandler(
@@ -578,3 +605,35 @@ class TestAssignments(TestCase):
             ],
         )
         self.assertTrue(controller.changed)
+
+
+class TestBlockWhileBusy(TestCase):
+    def test_agent_is_ready(self):
+        agent = Mock()
+        agent.busy.return_value = False
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.block_while_busy(timeout=None, interval=0)
+        self.assertEqual(
+            agent.method_calls, [call.busy()],
+        )
+
+    def test_wait_while_agent_is_busy(self):
+        agent = Mock()
+        agent.busy.side_effect = [True, False]
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.block_while_busy(timeout=None, interval=0)
+        self.assertEqual(
+            agent.method_calls, [call.busy(), call.busy()],
+        )
+
+    def test_timeout(self):
+        agent = Mock()
+        agent.busy.return_value = True
+        controller = make_bamboo_agent_controller(agent=agent)
+        self.assertRaises(
+            TimeoutError,
+            controller.block_while_busy,
+            timeout=0,
+            interval=0,
+        )
+

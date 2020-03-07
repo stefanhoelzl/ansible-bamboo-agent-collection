@@ -242,6 +242,21 @@ class TestAssignments(BambooAgentAcceptanceTest):
     ]
 
 
+class TestBlockWhileBusy(BambooAgentAcceptanceTest):
+    Home = BambooHome().config(aid=1234)
+    Arguments = dict(block_while_busy=True, interval_busy_polling=0)
+    ExpectedRequests = [
+        templates.Pending.request(),
+        templates.Agents.request(),
+        templates.Agents.request(),
+    ]
+    Responses = [
+        ActionResponse([]),
+        templates.Agents.response([dict(id=1234, busy=True)]),
+        templates.Agents.response([dict(id=1234, busy=False)]),
+    ]
+
+
 class TestReturnValues(BambooAgentAcceptanceTest):
     Home = BambooHome().config(aid=1234)
     ExpectedRequests = [

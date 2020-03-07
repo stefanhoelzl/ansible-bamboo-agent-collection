@@ -6,7 +6,7 @@ Method = bamboo_agent_configuration.Method
 Response = bamboo_agent_configuration.Response
 Request = bamboo_agent_configuration.Request
 HttpRequestHandler = bamboo_agent_configuration.HttpRequestHandler
-timeout = bamboo_agent_configuration.timeout
+retry = bamboo_agent_configuration.retry
 BambooAgentError = bamboo_agent_configuration.BambooAgentError
 ServerCommunicationError = bamboo_agent_configuration.ServerCommunicationError
 MissingUuid = bamboo_agent_configuration.MissingUuid
@@ -14,3 +14,4 @@ SelfRecoverableBambooAgentError = (
     bamboo_agent_configuration.SelfRecoverableBambooAgentError
 )
 AssignmentNotFound = bamboo_agent_configuration.AssignmentNotFound
+AgentBusy = bamboo_agent_configuration.AgentBusy
