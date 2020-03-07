@@ -377,7 +377,7 @@ class BambooAgent:
             host=host, auth=(credentials["user"], credentials["password"])
         )
 
-    @lru_cache(maxsize=2)
+    @lru_cache()
     def _search_assignments(self, etype):
         return self.request(
             Request(
@@ -385,7 +385,7 @@ class BambooAgent:
             )
         ).content["searchResults"]
 
-    @lru_cache(maxsize=1)
+    @lru_cache()
     def info(self):
         agents = self.request(Request("/rest/api/latest/agent/")).content
         return next((agent for agent in agents if agent["id"] == self.id()), None)
@@ -579,12 +579,16 @@ class BambooAgentController:
 
         current_assignments = self.agent.assignments()
         if current_assignments != assignments:
-            for eid, etype in assignments.items():
-                if eid not in current_assignments:
-                    self.agent.add_assignment(etype, eid)
-            for eid, etype in current_assignments.items():
-                if eid not in assignments:
-                    self.agent.remove_assignment(etype, eid)
+            all(
+                self.agent.add_assignment(etype, eid)
+                for eid, etype in assignments.items()
+                if eid not in current_assignments
+            )
+            all(
+                self.agent.remove_assignment(etype, eid)
+                for eid, etype in current_assignments.items()
+                if eid not in assignments
+            )
             self.changed = True
 
     def block_while_busy(self):
