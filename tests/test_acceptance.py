@@ -42,21 +42,27 @@ class HttpRequestHandler(BaseHTTPRequestHandler):
         pass
 
 
-@contextmanager
-def bamboo_server(port: int, responses: list) -> str:
-    requests = []
+class RequestHandler(HttpRequestHandler):
+    Responses = []
+    Requests = []
 
-    class _RequestHandler(HttpRequestHandler):
-        Responses = responses
-        Requests = requests
 
-    httpd = HTTPServer(("localhost", port), _RequestHandler)
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-    thread.start()
-    yield f"http://localhost:{port}", requests
-    httpd.server_close()
-    httpd.shutdown()
-    thread.join()
+class HttpServerMock:
+    def __init__(self):
+        self.url = "http://localhost:7000"
+        threading.Thread(
+            target=HTTPServer(("localhost", 7000), RequestHandler).serve_forever,
+            daemon=True,
+        ).start()
+
+    @property
+    def requests(self):
+        return RequestHandler.Requests
+
+    def reset(self, responses):
+        RequestHandler.Responses = responses
+        RequestHandler.Requests = []
+        return RequestHandler.Requests
 
 
 class BambooAgentAcceptanceTest(RequestTestCase):
@@ -67,13 +73,11 @@ class BambooAgentAcceptanceTest(RequestTestCase):
     ExpectedResult = dict()
     ExpectChange = False
 
-    _NextServerPort = 7000
+    _HttpServer = HttpServerMock()
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         setattr(cls, f"test_{cls.__name__}", cls._test)
-        cls.ServerPort = BambooAgentAcceptanceTest._NextServerPort
-        BambooAgentAcceptanceTest._NextServerPort += 1
 
     def _test(self):
         result, requests = self._run_module()
@@ -83,37 +87,37 @@ class BambooAgentAcceptanceTest(RequestTestCase):
 
     def _run_module(self):
         with TemporaryDirectory() as tempdir:
-            with bamboo_server(self.ServerPort, self.Responses) as (url, requests):
-                arguments_file_path = Path(tempdir, "arguments.json")
-                with open(arguments_file_path, mode="w+") as arguments_file:
-                    arguments = {
-                        **BambooAgentAcceptanceTest.Arguments,
-                        **self.Arguments,
-                    }
-                    json.dump(
-                        dict(
-                            ANSIBLE_MODULE_ARGS=dict(
-                                host=url,
-                                home=str(self.Home.create(tempdir)),
-                                **arguments,
-                            )
-                        ),
-                        arguments_file,
-                    )
-
-                process = subprocess.run(
-                    [
-                        sys.executable,
-                        "bamboo-agent-configuration.py",
-                        str(arguments_file_path),
-                    ],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+            self._HttpServer.reset(self.Responses)
+            arguments_file_path = Path(tempdir, "arguments.json")
+            with open(arguments_file_path, mode="w+") as arguments_file:
+                arguments = {
+                    **BambooAgentAcceptanceTest.Arguments,
+                    **self.Arguments,
+                }
+                json.dump(
+                    dict(
+                        ANSIBLE_MODULE_ARGS=dict(
+                            host=self._HttpServer.url,
+                            home=str(self.Home.create(tempdir)),
+                            **arguments,
+                        )
+                    ),
+                    arguments_file,
                 )
+
+            process = subprocess.run(
+                [
+                    sys.executable,
+                    "bamboo-agent-configuration.py",
+                    str(arguments_file_path),
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
 
         if process.returncode:
             raise RuntimeError(process.returncode, process.stdout, process.stderr)
-        return json.loads(process.stdout), requests
+        return json.loads(process.stdout), self._HttpServer.requests
 
     def _check_result(self, result):
         del result["invocation"]
