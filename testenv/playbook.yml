@@ -9,7 +9,7 @@
   tasks:
   - name: Query pending agents
     uri:
-        url: "http://bamboo-server:8085/rest/api/latest/agent/authentication?pending=true"
+        url: "http://bamboo-server:8085/rest/api/latest/agent/?pending=true"
         method: GET
         force_basic_auth: yes
         user: "admin"
@@ -20,7 +20,7 @@
     bamboo-agent-configuration:
       host: "{{ bamboo_server }}"
       home: "{{ bamboo_home }}"
-      authentication:
+      credentials:
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"
   - name: Query registered agents
@@ -37,7 +37,7 @@
       host: "{{ bamboo_server }}"
       home: "{{ bamboo_home }}"
       enabled: false
-      authentication:
+      credentials:
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"
   - name: Query agent disabled
@@ -54,7 +54,7 @@
       host: "{{ bamboo_server }}"
       home: "{{ bamboo_home }}"
       name: "new-name"
-      authentication:
+      credentials:
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"
   - name: Query changed name
@@ -73,7 +73,7 @@
       assignments:
       - type: project
         key: DP
-      authentication:
+      credentials:
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"
     register: current_state
@@ -90,7 +90,7 @@
       assignments:
       - type: project
         key: DP
-      authentication:
+      credentials:
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"
   - name: Query no changes
