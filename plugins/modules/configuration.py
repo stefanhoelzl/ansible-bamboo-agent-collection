@@ -626,7 +626,8 @@ def main():
     name = module.params.pop("name")
     assignments = module.params.pop("assignments")
     should_block_while_busy = module.params.pop("block_while_busy")
-    http_timeout = module.params.get("timings", {}).pop("http_timeout", 10)
+    timings = module.params.pop("timings") or dict()
+    http_timeout = timings.pop("http_timeout", 10)
 
     controller = BambooAgentController(
         agent=BambooAgent(
@@ -635,6 +636,7 @@ def main():
             credentials=module.params.pop("credentials"),
             http_timeout=http_timeout,
         ),
+        timings=timings,
         **module.params,
     )
     try:
