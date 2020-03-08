@@ -23,7 +23,7 @@ jobs:
       - name: build collection
         shell: bash
         run: ./build.sh
-      - name: upload data
+      - name: upload collection package
         uses: actions/upload-artifact@v1
         with:
           name: collection
@@ -67,6 +67,10 @@ jobs:
       - name: acceptance tests
         shell: bash
         run: tests/acceptance_tests.sh
-        # does not run yet with github actions
-        continue-on-error: true
+      - name: upload test results
+        uses: actions/upload-artifact@v1
+        with:
+          name: acceptance-test-results
+          path: tests/env/results
+        if: always()
   

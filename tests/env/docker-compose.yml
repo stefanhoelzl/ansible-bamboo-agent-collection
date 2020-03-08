@@ -8,9 +8,9 @@ services:
     - "8085:8085"
     volumes:
     - ./server/data:/var/atlassian/application-data/bamboo
-    - ./server/libs:/libs
+    - ./tools:/tools
     environment:
-      LD_PRELOAD: /libs/libfaketime.so.1
+      LD_PRELOAD: /tools/libfaketime.so.1
       FAKETIME: "@2020-03-01 12:00:00"
       FAKETIME_DONT_FAKE_MONOTONIC: 1
     networks:
@@ -23,7 +23,7 @@ services:
   agent:
     build: agent
     init: true
-    entrypoint: ./runAgent.sh http://172.1.0.100:8085
+    entrypoint: ["./runAgent.sh", "http://172.1.0.100:8085"]
     hostname: bamboo-agent
     volumes:
     - ./results:/results
@@ -34,14 +34,16 @@ services:
         ipv4_address: 172.1.0.101
   ansible:
     build: ./ansible
-    command: ["python", "wait-for-http.py", "http://bamboo-server:8085", "ansible-playbook", "playbook.yml"]
+    command: ["python", "/tools/wait-for-http.py", "http://bamboo-server:8085", "ansible-playbook", "playbook.yml"]
     volumes:
     - ./ansible/project:/project
+    - ./tools:/tools
     networks:
       internal:
         ipv4_address: 172.1.0.99
 networks:
   internal:
+    driver: bridge
     internal: true
     ipam:
       config:
