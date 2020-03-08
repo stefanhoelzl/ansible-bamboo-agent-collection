@@ -1,44 +1,61 @@
 import json
+import unittest
 from pathlib import Path
+from functools import partial, wraps
 
 
-class ResultChecker:
-    def __init__(self):
-        self.tasks = 2
-        self.changed = 2
+def from_file(filename: str, changed=True, task=True):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(self):
+            path = Path("results", filename)
+            with open(str(path)) as f:
+                content = json.load(f) if filename.endswith("json") else f.read()
+            return fn(self, content)
 
-    def check(self, filename: str, expected: dict, changed=True):
-        self.tasks += 2
-        self.changed += 2 if changed else 0
+        return wrapper
 
-        data = json.load(open(f"results/{ filename }"))
-        if isinstance(data, list):
-            assert len(data) == 1
-            data = data[0]
-        for key, expected_value in expected.items():
-            assert (
-                expected_value == data[key]
-            ), f"unexpected value '{data[key]}' for key '{key}' ({filename})"
-
-    def check_statistic(self, outfile: str):
-        output = Path(f"results/{outfile}").read_text()
-        assert f"ok={self.tasks}" in output, self.tasks
-        assert f"changed={self.changed}" in output, self.changed
-        assert "failed=0" in output
+    return decorator
 
 
-checker = ResultChecker()
-# checker.check("pending.json", dict(ip="172.1.0.101"))
-checker.check(
-    "registration.json",
-    dict(name="bamboo-agent", type="REMOTE", active=True, enabled=True),
-)
-checker.check("disabled.json", dict(enabled=False))
-checker.check("changed_name.json", dict(name="new-name"))
-checker.check(
-    "current_state.json",
-    dict(name="new-name", enabled=False, busy=False, active=True),
-    changed=True,
-)
-checker.check("unchanged.json", dict(name="new-name", enabled=False), changed=False)
-checker.check_statistic("ansible.logs")
+class TestResults(unittest.TestCase):
+    @from_file("registration.json")
+    def test_registration(self, registration):
+        self.assertEqual(len(registration), 1)
+        self.assertEqual(registration[0]["name"], "bamboo-agent")
+        self.assertEqual(registration[0]["type"], "REMOTE")
+        self.assertTrue(registration[0]["enabled"])
+        self.assertTrue(registration[0]["active"])
+
+    @from_file("disabled.json")
+    def test_disabled(self, disabled):
+        self.assertEqual(len(disabled), 1)
+        self.assertFalse(disabled[0]["enabled"])
+
+    @from_file("changed_name.json")
+    def test_changed_name(self, changed_name):
+        self.assertEqual(len(changed_name), 1)
+        self.assertEqual(changed_name[0]["name"], "new-name")
+
+    @from_file("current_state.json")
+    def test_current_state(self, current_state):
+        self.assertEqual(current_state["name"], "new-name")
+        self.assertFalse(current_state["enabled"])
+        self.assertTrue(current_state["active"])
+        self.assertFalse(current_state["busy"])
+
+    @from_file("unchanged.json")
+    def test_unchanged(self, unchanged):
+        self.assertEqual(len(unchanged), 1)
+        self.assertEqual(unchanged[0]["name"], "new-name")
+        self.assertFalse(unchanged[0]["enabled"])
+
+    @from_file("ansible.logs", task=False)
+    def test_statistic(self, ansible_log: str):
+        self.assertIn("ok=12", ansible_log)
+        self.assertIn("changed=10", ansible_log)
+        self.assertIn("failed=0", ansible_log)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
