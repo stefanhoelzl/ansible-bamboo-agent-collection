@@ -271,4 +271,3 @@ class TestReturnValues(BambooAgentIntegrationTest):
     ExpectedResult = dict(
         id=1234, name="agent-name", enabled=True, busy=False, active=True
     )
-

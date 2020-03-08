@@ -637,4 +637,3 @@ class TestBlockWhileBusy(TestCase):
             agent=agent, timings=dict(busy_timeout=0, busy_polling_interval=0)
         )
         self.assertRaises(TimeoutError, controller.block_while_busy)
-

@@ -1,0 +1,72 @@
+name: build and test
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+      - name: setup python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.8'
+      - name: install requirements
+        shell: bash
+        run: pip install -r dev-requirements.txt
+      - name: run black
+        shell: bash
+        run: black --check .
+      - name: build collection
+        shell: bash
+        run: ./build.sh
+      - name: upload data
+        uses: actions/upload-artifact@v1
+        with:
+          name: collection
+          path: release
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.5', '3.6', '3.7', '3.8']
+        ansible: ['2.9.5', '2.9.6']
+    steps:
+      - name: checkout
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+      - name: setup python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python }}
+      - name: install ansible
+        shell: bash
+        run: pip install ansible==${{ matrix.ansible }}
+      - name: unit and integration tests
+        shell: bash
+        run: python tests
+  acceptance_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+      - name: setup python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.8'
+      - name: install ansible
+        shell: bash
+        run: pip install ansible==2.9.5
+      - name: acceptance tests
+        shell: bash
+        run: tests/acceptance_tests.sh
+        # does not run yet with github actions
+        continue-on-error: true
+  

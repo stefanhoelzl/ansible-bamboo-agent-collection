@@ -110,4 +110,3 @@ class BambooHome:
             (path / filename).write_text(content)
         self.path = path
         return path
-

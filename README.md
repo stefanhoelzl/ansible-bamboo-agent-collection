@@ -1,4 +1,5 @@
 # Ansible collection for bamboo agent configuration
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/stefanhoelzl/ansible-bamboo-agent-collection/build and test?style=flat)
 
 Ansible collection for bamboo remote agent configuration 
 using the [REST API](https://docs.atlassian.com/atlassian-bamboo/REST/6.9.2).
