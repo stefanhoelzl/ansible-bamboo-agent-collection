@@ -86,15 +86,21 @@ options:
         required: True
         type: dict
         suboptions:
-            busy_timeout:
+            http_timeout:
+                description:
+                - timeout for http requests in seconds
                 required: false
                 type: float
+                default: 10
             authentication_timeout:
                 description:
                 - seconds after the authentication fails if the agent does not show up in Bamboo
                 required: false
                 type: float
                 default: 240
+            busy_timeout:
+                required: false
+                type: float
             busy_polling_interval:
                 description:
                 - seconds between http request to check if agent is still busy
@@ -218,6 +224,7 @@ ArgumentSpec = dict(
         type=dict,
         required=False,
         suboptions=dict(
+            http_timeout=dict(type=float, required=False, default=10),
             authentication_timeout=dict(type=float, required=False, default=240.0),
             busy_timeout=dict(type=float, required=False),
             busy_polling_interval=dict(type=float, default=60.0, required=False),
@@ -330,10 +337,15 @@ urlopen_no_redirect = urlrequest.build_opener(
 
 class HttpRequestHandler:
     def __init__(
-        self, host: str, auth: Tuple[str, str], urlopen=urlopen_no_redirect,
+        self,
+        host: str,
+        auth: Tuple[str, str],
+        timeout: float,
+        urlopen=urlopen_no_redirect,
     ):
         self.host = host
         self.auth = auth
+        self.timeout = timeout
         self._urlopen = urlopen
 
     def __call__(self, request: Request) -> Response:
@@ -348,7 +360,7 @@ class HttpRequestHandler:
         )
         request.add_header("Authorization", f"Basic {auth_string}")
         request.add_header("X-Atlassian-Token", "no-check")
-        with self._urlopen(request, timeout=10) as response:
+        with self._urlopen(request, timeout=self.timeout) as response:
             return Response(response.read(), status_code=response.getcode())
 
 
@@ -369,12 +381,15 @@ class BambooAgent:
         host: str,
         home: str,
         credentials: Dict[str, str],
+        http_timeout: int,
         request_handler=HttpRequestHandler,
     ):
         self.home = home
         self.changed = False
         self.request_handler = request_handler(
-            host=host, auth=(credentials["user"], credentials["password"])
+            host=host,
+            auth=(credentials["user"], credentials["password"]),
+            timeout=http_timeout,
         )
 
     @lru_cache()
@@ -611,12 +626,14 @@ def main():
     name = module.params.pop("name")
     assignments = module.params.pop("assignments")
     should_block_while_busy = module.params.pop("block_while_busy")
+    http_timeout = module.params.get("timings", {}).pop("http_timeout", 10)
 
     controller = BambooAgentController(
         agent=BambooAgent(
             host=module.params.pop("host"),
             home=module.params.pop("home"),
             credentials=module.params.pop("credentials"),
+            http_timeout=http_timeout,
         ),
         **module.params,
     )
@@ -627,7 +644,7 @@ def main():
         controller.update_assignments(controller.agent.resolve_assignments(assignments))
         if should_block_while_busy:
             controller.block_while_busy()
-    except BambooAgentError as error:
+    except (BambooAgentError, urlrequest.URLError) as error:
         module.fail_json(msg=str(error))
 
     module.exit_json(changed=controller.changed, **controller.agent.info())

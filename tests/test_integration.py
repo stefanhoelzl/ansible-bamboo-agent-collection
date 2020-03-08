@@ -100,6 +100,7 @@ class BambooAgentIntegrationTest(RequestTestCase):
                     **BambooAgentIntegrationTest.Arguments,
                     **self.Arguments,
                 }
+                arguments.setdefault("timings", {}).setdefault("http_timeout", 1)
                 json.dump(
                     dict(
                         ANSIBLE_MODULE_ARGS=dict(
@@ -150,12 +151,15 @@ class TestErrorHandling(BambooAgentIntegrationTest):
     Uuid = "00000000-1111-2222-3333-444444444444"
     Home = BambooHome().temp_uuid(Uuid)
     ExpectFailure = True
-    ExpectedRequests = [
-        templates.Pending.request(),
-    ]
-    Responses = [
-        ActionResponse(status_code=400),
-    ]
+    ExpectedRequests = [templates.Pending.request()]
+    Responses = [ActionResponse(status_code=400)]
+
+
+class TestHttpTimeout(BambooAgentIntegrationTest):
+    Uuid = "00000000-1111-2222-3333-444444444444"
+    Arguments = dict(timings=dict(http_timeout=0))
+    Home = BambooHome().temp_uuid(Uuid)
+    ExpectFailure = True
 
 
 class TestUnchanged(BambooAgentIntegrationTest):

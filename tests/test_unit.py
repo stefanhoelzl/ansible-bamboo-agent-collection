@@ -5,7 +5,7 @@ from unittest import TestCase
 from unittest.mock import Mock, call
 from typing import List, Optional
 from contextlib import contextmanager
-from tests import RequestTestCase, IpAddress, BambooHome
+from tests import RequestTestCase, IpAddress, BambooHome, ActionResponse
 from . import templates
 from plugins.modules.configuration import (
     BambooAgentController,
@@ -94,7 +94,7 @@ class TestHttpRequestHandler(TestCase):
     def test_default_request(self):
         urlopen = MockUrlOpen()
         handler = HttpRequestHandler(
-            "http://host/", urlopen=urlopen, auth=("user", "password")
+            "http://host/", urlopen=urlopen, auth=("user", "password"), timeout=0
         )
         handler(Request("/my/path"))
 
@@ -107,12 +107,12 @@ class TestHttpRequestHandler(TestCase):
                 "X-atlassian-token": "no-check",
             },
         )
-        self.assertEqual(urlopen.timeout, 10)
 
     def test_response_data_and_status_code(self):
         handler = HttpRequestHandler(
             "http://host/",
             auth=("", ""),
+            timeout=0,
             urlopen=MockUrlOpen(status_code=204, content=b"[1, 2, 3]"),
         )
         response = handler(Request("/my/path"))
@@ -122,18 +122,30 @@ class TestHttpRequestHandler(TestCase):
 
     def test_custom_method(self):
         urlopen = MockUrlOpen()
-        handler = HttpRequestHandler("http://host/", auth=("", ""), urlopen=urlopen)
+        handler = HttpRequestHandler(
+            "http://host/", auth=("", ""), timeout=0, urlopen=urlopen
+        )
         handler(Request("/my/path", method=Method.Put))
 
         self.assertEqual(urlopen.method, "PUT")
+
+    def test_timeout(self):
+        urlopen = MockUrlOpen()
+        handler = HttpRequestHandler(
+            "http://host/", auth=("", ""), timeout=0, urlopen=urlopen
+        )
+        handler(Request("/my/path", method=Method.Put))
+        self.assertEqual(urlopen.timeout, 0)
 
 
 class MockRequestHandler:
     def __init__(self, responses: Optional[List[Response]] = None):
         self.responses = responses or []
         self.requests = []
+        self.timeout = None
 
-    def __call__(self, host: str, auth):
+    def __call__(self, host: str, auth, timeout: int):
+        self.timeout = timeout
         return self.handler
 
     def handler(self, request: Request) -> Optional[Response]:
@@ -147,12 +159,14 @@ class MockRequestHandler:
 def make_bamboo_agent(
     request_handler: Optional[MockRequestHandler] = None,
     home: Optional[BambooHome] = None,
+    http_timeout: int = 0,
 ) -> BambooAgentController:
     return BambooAgent(
         host="http://localhost",
         home=home or "",
         credentials=dict(user="", password=""),
         request_handler=request_handler or MockRequestHandler(),
+        http_timeout=http_timeout,
     )
 
 
@@ -166,19 +180,23 @@ class TestRequest(RequestTestCase):
         self.assert_requests(rh.requests, request)
 
     def test_expect_default_response_code(self):
-        response = Response(status_code=204)
-        rh = MockRequestHandler(responses=[response])
+        rh = MockRequestHandler(responses=[Response(status_code=204)])
         agent = make_bamboo_agent(rh)
         self.assertRaises(ServerCommunicationError, lambda: agent.request(Request("/")))
 
     def test_expect_custom_response_code(self):
-        response = Response(status_code=200)
-        rh = MockRequestHandler(responses=[response])
+        rh = MockRequestHandler(responses=[Response(status_code=200)])
         agent = make_bamboo_agent(rh)
         self.assertRaises(
             ServerCommunicationError,
             lambda: agent.request(Request("/"), response_code=204),
         )
+
+    def test_timeout(self):
+        rh = MockRequestHandler(responses=[Response(status_code=200)])
+        agent = make_bamboo_agent(rh, http_timeout=0)
+        agent.request(Request("/"))
+        self.assertEqual(rh.timeout, 0)
 
 
 class TestBambooAgent(RequestTestCase):
