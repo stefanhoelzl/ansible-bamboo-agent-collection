@@ -405,11 +405,15 @@ class BambooAgent:
         agents = self.request(Request("/rest/api/latest/agent/")).content
         return next((agent for agent in agents if agent["id"] == self.id()), None)
 
-    def request(self, request: Request, response_code: int = 200) -> Response:
+    def request(self, request: Request, allow_redirect: bool = False) -> Response:
+        expected_status_code = (
+            204 if request.method in [Method.Put, Method.Delete] else 200
+        )
         response = self.request_handler(request)
-        if response.status_code != response_code:
-            raise ServerCommunicationError(request, response)
-        return response
+        valid_redirect = allow_redirect and response.status_code == 302
+        if (response.status_code == expected_status_code) or valid_redirect:
+            return response
+        raise ServerCommunicationError(request, response)
 
     def uuid(self) -> Optional[str]:
         config_file = Path(self.home, "bamboo-agent.cfg.xml")
@@ -458,10 +462,7 @@ class BambooAgent:
         if uuid is None:
             raise MissingUuid(self.home)
         self.request(
-            Request(
-                f"/rest/api/latest/agent/authentication/{uuid}", method=Method.Put,
-            ),
-            response_code=204,
+            Request(f"/rest/api/latest/agent/authentication/{uuid}", method=Method.Put,)
         )
 
     def enabled(self) -> bool:
@@ -473,7 +474,7 @@ class BambooAgent:
                 f"/admin/agent/disableAgent.action?agentId={self.id()}",
                 method=Method.Post,
             ),
-            response_code=302,
+            allow_redirect=True,
         )
 
     def enable(self):
@@ -482,7 +483,7 @@ class BambooAgent:
                 f"/admin/agent/enableAgent.action?agentId={self.id()}",
                 method=Method.Post,
             ),
-            response_code=302,
+            allow_redirect=True,
         )
 
     def busy(self):
@@ -498,7 +499,7 @@ class BambooAgent:
                 f"/admin/agent/updateAgentDetails.action?agentId={ self.id() }&agentName={ name }&save=Update",
                 method=Method.Post,
             ),
-            response_code=302,
+            allow_redirect=True,
         )
 
     def assignments(self) -> Dict[int, str]:
@@ -524,8 +525,7 @@ class BambooAgent:
             Request(
                 f"/rest/api/latest/agent/assignment?executorType=AGENT&executorId={ self.id() }&assignmentType={ etype }&entityId={ eid }",
                 method=Method.Delete,
-            ),
-            response_code=204,
+            )
         )
 
     def resolve_assignments(

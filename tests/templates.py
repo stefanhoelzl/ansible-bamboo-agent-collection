@@ -42,8 +42,8 @@ class Disable:
         )
 
     @staticmethod
-    def response() -> Response:
-        return ActionResponse(status_code=302)
+    def response(status_code: int = 200) -> Response:
+        return ActionResponse(status_code=status_code)
 
 
 class Enable:
@@ -54,8 +54,8 @@ class Enable:
         )
 
     @staticmethod
-    def response() -> Response:
-        return ActionResponse(status_code=302)
+    def response(status_code: int = 200) -> Response:
+        return ActionResponse(status_code=status_code)
 
 
 class SetName:
@@ -67,8 +67,8 @@ class SetName:
         )
 
     @staticmethod
-    def response() -> Response:
-        return ActionResponse(status_code=302)
+    def response(status_code: int = 200) -> Response:
+        return ActionResponse(status_code=status_code)
 
 
 class Assignments:

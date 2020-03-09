@@ -179,17 +179,35 @@ class TestRequest(RequestTestCase):
         self.assertEqual(agent.request(request), response)
         self.assert_requests(rh.requests, request)
 
-    def test_expect_default_response_code(self):
-        rh = MockRequestHandler(responses=[Response(status_code=204)])
+    def test_valid_response_codes(self):
+        rh = MockRequestHandler(
+            responses=[
+                Response(status_code=200),
+                Response(status_code=200),
+                Response(status_code=204),
+                Response(status_code=204),
+            ]
+        )
         agent = make_bamboo_agent(rh)
-        self.assertRaises(ServerCommunicationError, lambda: agent.request(Request("/")))
+        agent.request(Request("/", method=Method.Get))
+        agent.request(Request("/", method=Method.Post))
+        agent.request(Request("/", method=Method.Delete))
+        agent.request(Request("/", method=Method.Put))
 
-    def test_expect_custom_response_code(self):
-        rh = MockRequestHandler(responses=[Response(status_code=200)])
+    def test_allow_redirect(self):
+        rh = MockRequestHandler(
+            responses=[
+                Response(status_code=200),
+                Response(status_code=302),
+                Response(status_code=302),
+            ]
+        )
         agent = make_bamboo_agent(rh)
+        agent.request(Request("/", method=Method.Post), allow_redirect=True)
+        agent.request(Request("/", method=Method.Post), allow_redirect=True)
         self.assertRaises(
             ServerCommunicationError,
-            lambda: agent.request(Request("/"), response_code=204),
+            partial(agent.request, Request("/", method=Method.Post)),
         )
 
     def test_timeout(self):
@@ -326,6 +344,16 @@ class TestBambooAgent(RequestTestCase):
             )
             self.assertTrue(agent.enabled())
 
+    def test_enabled_with_redirect(self):
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(
+                home=home,
+                request_handler=MockRequestHandler(
+                    responses=[templates.Agents.response([dict(id=1234, enabled=True)])]
+                ),
+            )
+            self.assertTrue(agent.enabled())
+
     def test_disable(self):
         rh = MockRequestHandler(responses=[templates.Disable.response()])
         with BambooHome().config(aid=1234).temp() as home:
@@ -333,12 +361,24 @@ class TestBambooAgent(RequestTestCase):
             agent.disable()
         self.assert_requests(rh.requests, templates.Disable.request(agent_id=1234))
 
+    def test_disable_with_redirect(self):
+        rh = MockRequestHandler(responses=[templates.Disable.response(status_code=302)])
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.disable()
+
     def test_enable(self):
         rh = MockRequestHandler(responses=[templates.Enable.response()])
         with BambooHome().config(aid=1234).temp() as home:
             agent = make_bamboo_agent(home=home, request_handler=rh)
             agent.enable()
         self.assert_requests(rh.requests, templates.Enable.request(agent_id=1234))
+
+    def test_enable_with_redirect(self):
+        rh = MockRequestHandler(responses=[templates.Enable.response(status_code=302)])
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.enable()
 
     def test_busy(self):
         with BambooHome().config(aid=1234).temp() as home:
@@ -381,6 +421,12 @@ class TestBambooAgent(RequestTestCase):
         self.assert_requests(
             rh.requests, templates.SetName.request(agent_id=1234, name="new-name")
         )
+
+    def test_set_name_with_redirect(self):
+        rh = MockRequestHandler(responses=[templates.SetName.response(status_code=302)])
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.set_name("name")
 
     def test_assignments(self):
         rh = MockRequestHandler(
