@@ -94,11 +94,11 @@ class TestHttpRequestHandler(TestCase):
     def test_default_request(self):
         urlopen = MockUrlOpen()
         handler = HttpRequestHandler(
-            "http://host/", urlopen=urlopen, auth=("user", "password"), timeout=0
+            "http://host/sub", urlopen=urlopen, auth=("user", "password"), timeout=0
         )
         handler(Request("/my/path"))
 
-        self.assertEqual(urlopen.url, "http://host/my/path")
+        self.assertEqual(urlopen.url, "http://host/sub/my/path")
         self.assertEqual(urlopen.method, "GET")
         self.assertEqual(
             urlopen.header,

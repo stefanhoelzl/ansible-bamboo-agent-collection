@@ -192,7 +192,6 @@ import base64
 from enum import Enum
 from pathlib import Path
 from functools import lru_cache
-from urllib.parse import urljoin
 from itertools import zip_longest
 import urllib.request as urlrequest
 from typing import NamedTuple, List, Dict, Optional, Union, Tuple, Callable
@@ -350,7 +349,8 @@ class HttpRequestHandler:
 
     def __call__(self, request: Request) -> Response:
         request = urlrequest.Request(
-            urljoin(self.host, request.path), method=str(request.method)
+            "/".join((self.host.rstrip("/"), request.path.lstrip("/"))),
+            method=str(request.method),
         )
         user, passwd = self.auth
         auth_string = (
