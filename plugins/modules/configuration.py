@@ -192,9 +192,8 @@ import base64
 from enum import Enum
 from pathlib import Path
 from functools import lru_cache
-from itertools import zip_longest
 import urllib.request as urlrequest
-from typing import NamedTuple, List, Dict, Optional, Union, Tuple, Callable
+from typing import List, Dict, Optional, Union, Tuple
 
 from ansible.module_utils.basic import AnsibleModule
 
