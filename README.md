@@ -13,28 +13,16 @@ using the [REST API](https://docs.atlassian.com/atlassian-bamboo/REST/6.9.2).
 - [x] no dependencies
 
 ## Usage
-checkout the repository
+install collection
 ```bash
-$ git clone git clone https://github.com/stefanhoelzl/ansible-bamboo-agent-collection.git
-$ cd ansible-bamboo-agent-collection
+$ ansible-galaxy collection install stefanhoelzl.bamboo_agent
 ```
-
-build the collection
-```bash
-$ ./build.sh
-```
-
-install the collection
-```bash
-$ ansible-galaxy collection install release/stefanhoelzl.bamboo_agent-${VERSION}.tar.gz
-```
-for more informations how to install ansible collections see the [documentation](https://docs.ansible.com/ansible/latest/user_guide/collections_using.html#installing-collections-with-ansible-galaxy).
 
 adding a task to your playbook
 ```yaml
 - name: configure bamboo remote agent
   stefanhoelzl.bamboo_agent.configuration:
-    host: "http://atlassian.my-domain.com/bamboo/"
+    host: "https://atlassian.my-domain.com/bamboo/"
     home: "/home/bamboo/bamboo-agent-home"
     name: bamboo-agent-name
     enabled: false
@@ -43,8 +31,21 @@ adding a task to your playbook
       key: PR
     credentials:
       user: "admin"
-      password: "admin"
+      password: "{{ bamboo_password }}"
 ```
+
+optinally the collection can be installed in a custom path
+```bash
+$ ansible-galaxy collection install stefanhoelzl.bamboo_agent -p <path>
+```
+
+then `ansible.cfg` has to be edited too
+```
+[defaults]
+collections_paths = <path>
+```
+
+for more informations on how to install ansible collections see the [documentation](https://docs.ansible.com/ansible/latest/user_guide/collections_using.html#installing-collections-with-ansible-galaxy).
 
 ## Development
 ### Dependencies
@@ -54,11 +55,22 @@ A `Dockerfile` which specifies a development image is located in `.devcontainer`
 This can be used as a standalone container or with the [VS Code Remote Extension](https://code.visualstudio.com/docs/remote/remote-overview).
 
 ### Build
+checkout the repository
+```bash
+$ git clone git clone https://github.com/stefanhoelzl/ansible-bamboo-agent-collection.git
+$ cd ansible-bamboo-agent-collection
+```
+
 Run 
 ```bash 
 $ ./build.sh
 ```
 to build the collection. The built collection can be found in the `release` directory.
+
+install the collection
+```bash
+$ ansible-galaxy collection install release/stefanhoelzl.bamboo_agent-${VERSION}.tar.gz
+```
 
 ### Testing
 Integration and unit tests can be run with
