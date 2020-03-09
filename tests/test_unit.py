@@ -120,6 +120,18 @@ class TestHttpRequestHandler(TestCase):
         self.assertEqual(response.content, [1, 2, 3])
         self.assertEqual(response.status_code, 204)
 
+    def test_read_no_data(self):
+        handler = HttpRequestHandler(
+            "http://host/",
+            auth=("", ""),
+            timeout=0,
+            urlopen=MockUrlOpen(status_code=204, content=b"[1, 2, 3]"),
+        )
+        response = handler(Request("/my/path"), read=False)
+
+        self.assertEqual(response.content, None)
+        self.assertEqual(response.status_code, 204)
+
     def test_custom_method(self):
         urlopen = MockUrlOpen()
         handler = HttpRequestHandler(
@@ -148,7 +160,7 @@ class MockRequestHandler:
         self.timeout = timeout
         return self.handler
 
-    def handler(self, request: Request) -> Optional[Response]:
+    def handler(self, request: Request, read) -> Optional[Response]:
         self.requests.append(request)
         response = self.responses.pop(0) if self.responses else None
         if callable(response):
@@ -335,16 +347,6 @@ class TestBambooAgent(RequestTestCase):
             self.assertRaises(MissingUuid, agent.authenticate)
 
     def test_enabled(self):
-        with BambooHome().config(aid=1234).temp() as home:
-            agent = make_bamboo_agent(
-                home=home,
-                request_handler=MockRequestHandler(
-                    responses=[templates.Agents.response([dict(id=1234, enabled=True)])]
-                ),
-            )
-            self.assertTrue(agent.enabled())
-
-    def test_enabled_with_redirect(self):
         with BambooHome().config(aid=1234).temp() as home:
             agent = make_bamboo_agent(
                 home=home,

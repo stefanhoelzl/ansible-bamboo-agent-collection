@@ -329,7 +329,7 @@ class ForwardHttpError(urlrequest.HTTPErrorProcessor):
         return response
 
 
-urlopen_no_redirect = urlrequest.build_opener(
+urlopen_ignoring_redirect = urlrequest.build_opener(
     ForwardHttpError(), urlrequest.HTTPSHandler(context=ssl.SSLContext())
 ).open
 
@@ -340,14 +340,14 @@ class HttpRequestHandler:
         host: str,
         auth: Tuple[str, str],
         timeout: float,
-        urlopen=urlopen_no_redirect,
+        urlopen=urlopen_ignoring_redirect,
     ):
         self.host = host
         self.auth = auth
         self.timeout = timeout
         self._urlopen = urlopen
 
-    def __call__(self, request: Request) -> Response:
+    def __call__(self, request: Request, read: bool = True) -> Response:
         request = urlrequest.Request(
             "/".join((self.host.rstrip("/"), request.path.lstrip("/"))),
             method=str(request.method),
@@ -361,7 +361,9 @@ class HttpRequestHandler:
         request.add_header("Authorization", f"Basic {auth_string}")
         request.add_header("X-Atlassian-Token", "no-check")
         with self._urlopen(request, timeout=self.timeout) as response:
-            return Response(response.read(), status_code=response.getcode())
+            return Response(
+                response.read() if read else None, status_code=response.getcode()
+            )
 
 
 def retry(query, timeout: Optional[float], interval: float, msg: Optional[str] = None):
@@ -405,11 +407,16 @@ class BambooAgent:
         agents = self.request(Request("/rest/api/latest/agent/")).content
         return next((agent for agent in agents if agent["id"] == self.id()), None)
 
-    def request(self, request: Request, allow_redirect: bool = False) -> Response:
+    def request(
+        self,
+        request: Request,
+        allow_redirect: bool = False,
+        read_response_data: bool = True,
+    ) -> Response:
         expected_status_code = (
             204 if request.method in [Method.Put, Method.Delete] else 200
         )
-        response = self.request_handler(request)
+        response = self.request_handler(request, read=read_response_data)
         valid_redirect = allow_redirect and response.status_code == 302
         if (response.status_code == expected_status_code) or valid_redirect:
             return response
@@ -475,6 +482,7 @@ class BambooAgent:
                 method=Method.Post,
             ),
             allow_redirect=True,
+            read_response_data=False,
         )
 
     def enable(self):
@@ -484,6 +492,7 @@ class BambooAgent:
                 method=Method.Post,
             ),
             allow_redirect=True,
+            read_response_data=False,
         )
 
     def busy(self):
@@ -500,6 +509,7 @@ class BambooAgent:
                 method=Method.Post,
             ),
             allow_redirect=True,
+            read_response_data=False,
         )
 
     def assignments(self) -> Dict[int, str]:
