@@ -7,15 +7,6 @@
     bamboo_user: "admin"
     bamboo_password: "admin"
   tasks:
-  - name: Query pending agents
-    uri:
-      url: "http://bamboo-server:8085/rest/api/latest/agent/?pending=true"
-      method: GET
-      force_basic_auth: yes
-      user: "admin"
-      password: "admin"
-      status_code: 200
-      dest: "/results/pending.json"
   - name: Register bamboo agent
     stefanhoelzl.bamboo_agent.configuration:
       host: "{{ bamboo_server }}"
@@ -23,6 +14,8 @@
       credentials:
         user: "{{ bamboo_user }}"
         password: "{{ bamboo_password }}"
+      timings:
+        http_timeout: 60
   - name: Query registered agents
     uri:
       url: "http://bamboo-server:8085/rest/api/latest/agent/"

@@ -52,8 +52,8 @@ class TestResults(unittest.TestCase):
 
     @from_file("ansible.logs", task=False)
     def test_statistic(self, ansible_log: str):
-        self.assertIn("ok=12", ansible_log)
-        self.assertIn("changed=10", ansible_log)
+        self.assertIn("ok=11", ansible_log)
+        self.assertIn("changed=9", ansible_log)
         self.assertIn("failed=0", ansible_log)
 
 
