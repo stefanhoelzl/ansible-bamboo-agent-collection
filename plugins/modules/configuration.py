@@ -20,7 +20,7 @@ version_added: "2.9.5"
 
 description:
 - "Handles bamboo remote agent configuration."
-- "Supports agent registration."
+- "Supports agent authentication."
 - "Supports agent assignments."
 - "Supports enable/disable agent and setting name/description."
 
@@ -116,7 +116,7 @@ seealso:
 """
 
 EXAMPLES = """
-- name: only agent registration
+- name: only agent authentication
   stefanhoelzl.bamboo_agent.configuration:
     host: https://bamboo-host
     home: /home/bamboo/bamboo-agent-home/
@@ -573,7 +573,7 @@ class BambooAgentController:
         self.agent = agent
         self.timings = timings or dict()
 
-    def register(self):
+    def authenticate(self):
         if not self.agent.authenticated():
             self.agent.authenticate()
 
@@ -653,7 +653,7 @@ def main():
         **module.params,
     )
     try:
-        controller.register()
+        controller.authenticate()
         controller.set_enabled(enabled)
         controller.set_name(name)
         controller.update_assignments(controller.agent.resolve_assignments(assignments))

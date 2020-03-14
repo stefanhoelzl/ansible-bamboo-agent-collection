@@ -563,17 +563,17 @@ class AgentMock(Mock):
             self.busy.side_effect = busy
 
 
-class TestRegistration(TestCase):
+class TestAuthentication(TestCase):
     def test_skip(self):
         agent = AgentMock(authenticated=True)
         controller = make_bamboo_agent_controller(agent=agent)
-        controller.register()
+        controller.authenticate()
         self.assertEqual(agent.method_calls, [call.authenticated()])
 
     def test_new_agent(self):
         agent = AgentMock(authenticated=False, available=True)
         controller = make_bamboo_agent_controller(agent=agent)
-        controller.register()
+        controller.authenticate()
         self.assertEqual(
             agent.method_calls,
             [call.authenticated(), call.authenticate(), call.available()],
@@ -582,7 +582,7 @@ class TestRegistration(TestCase):
     def test_retries(self):
         agent = AgentMock(authenticated=False, available=[False, True])
         controller = make_bamboo_agent_controller(agent=agent)
-        controller.register()
+        controller.authenticate()
         self.assertEqual(
             agent.method_calls,
             [
@@ -598,12 +598,12 @@ class TestRegistration(TestCase):
         controller = make_bamboo_agent_controller(
             agent=agent, timings=dict(authentication_timeout=0)
         )
-        self.assertRaises(TimeoutError, controller.register)
+        self.assertRaises(TimeoutError, controller.authenticate)
 
     def test_done_wait_in_check_mode(self):
         agent = AgentMock(check_mode=True, authenticated=False)
         controller = make_bamboo_agent_controller(agent=agent)
-        controller.register()
+        controller.authenticate()
         self.assertEqual(
             agent.method_calls, [call.authenticated(), call.authenticate()],
         )
