@@ -423,17 +423,11 @@ class BambooAgent:
             return response
         raise ServerCommunicationError(request, response)
 
-    def change(
-        self,
-        request: Request,
-        allow_redirect: bool = False,
-        read_response_data: bool = True,
-    ) -> Optional[Response]:
+    def change(self, request: Request, allow_redirect=False):
+        self.changed = True
         if not self.check_mode:
-            return self.request(
-                request,
-                allow_redirect=allow_redirect,
-                read_response_data=read_response_data,
+            self.request(
+                request, allow_redirect=allow_redirect, read_response_data=False
             )
 
     def uuid(self) -> Optional[str]:
@@ -496,7 +490,6 @@ class BambooAgent:
                 method=Method.Post,
             ),
             allow_redirect=True,
-            read_response_data=False,
         )
 
     def enable(self):
@@ -506,7 +499,6 @@ class BambooAgent:
                 method=Method.Post,
             ),
             allow_redirect=True,
-            read_response_data=False,
         )
 
     def busy(self):
@@ -523,7 +515,6 @@ class BambooAgent:
                 method=Method.Post,
             ),
             allow_redirect=True,
-            read_response_data=False,
         )
 
     def assignments(self) -> Dict[int, str]:
@@ -581,7 +572,6 @@ class BambooAgentController:
     ):
         self.agent = agent
         self.timings = timings or dict()
-        self.changed = False
 
     def register(self):
         if not self.agent.authenticated():
@@ -597,7 +587,6 @@ class BambooAgentController:
                 interval=1.0,
                 msg="agent not available after authentication",
             )
-            self.changed = True
 
     def set_enabled(self, enabled: Optional[bool]):
         if enabled is not None and enabled != self.agent.enabled():
@@ -605,12 +594,10 @@ class BambooAgentController:
                 self.agent.enable()
             else:
                 self.agent.disable()
-            self.changed = True
 
     def set_name(self, name: Optional[str]):
         if name is not None and self.agent.name() != name:
             self.agent.set_name(name)
-            self.changed = True
 
     def update_assignments(self, assignments: Optional[Dict[int, str]]):
         if assignments is None:
@@ -628,7 +615,6 @@ class BambooAgentController:
                 for eid, etype in current_assignments.items()
                 if eid not in assignments
             )
-            self.changed = True
 
     def block_while_busy(self):
         def block():
@@ -674,7 +660,7 @@ def main():
     except (BambooAgentError, urlrequest.URLError) as error:
         module.fail_json(msg=str(error))
 
-    module.exit_json(changed=controller.changed, **controller.agent.info())
+    module.exit_json(changed=controller.agent.changed, **controller.agent.info())
 
 
 if __name__ == "__main__":

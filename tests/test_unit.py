@@ -232,16 +232,20 @@ class TestRequest(RequestTestCase):
 
 
 class TestChange(RequestTestCase):
-    def test_forward_request_and_response(self):
-        response = Response()
+    def test_forward_request(self):
         request = Request("/my/path")
-        rh = MockRequestHandler(responses=[response])
+        rh = MockRequestHandler(responses=[Response()])
         agent = make_bamboo_agent(rh)
-        self.assertEqual(agent.change(request), response)
+        agent.change(request)
         self.assert_requests(rh.requests, request)
 
+    def test_set_changed(self):
+        agent = make_bamboo_agent(MockRequestHandler(responses=[Response()]))
+        agent.change(Request("/my/path"))
+        self.assertTrue(agent.changed)
+
     def test_suppress_change_in_check_mode(self):
-        rh = MockRequestHandler(responses=[Response()])
+        rh = MockRequestHandler()
         agent = make_bamboo_agent(rh, check_mode=True)
         agent.change(Request("/"))
         self.assertEqual(len(rh.requests), 0)
@@ -529,7 +533,6 @@ class TestRegistration(TestCase):
         controller = make_bamboo_agent_controller(agent=agent)
         controller.register()
         self.assertEqual(agent.method_calls, [call.authenticated()])
-        self.assertFalse(controller.changed)
 
     def test_new_agent(self):
         agent = Mock()
@@ -541,7 +544,6 @@ class TestRegistration(TestCase):
             agent.method_calls,
             [call.authenticated(), call.authenticate(), call.available()],
         )
-        self.assertTrue(controller.changed)
 
     def test_retries(self):
         agent = Mock()
@@ -575,7 +577,6 @@ class TestSetEnabled(TestCase):
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_enabled(None)
         self.assertEqual(agent.method_calls, [])
-        self.assertFalse(controller.changed)
 
     def test_different(self):
         agent = Mock()
@@ -583,7 +584,6 @@ class TestSetEnabled(TestCase):
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_enabled(True)
         self.assertEqual(agent.method_calls, [call.enabled()])
-        self.assertFalse(controller.changed)
 
     def test_enable(self):
         agent = Mock()
@@ -591,7 +591,6 @@ class TestSetEnabled(TestCase):
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_enabled(True)
         self.assertEqual(agent.method_calls, [call.enabled(), call.enable()])
-        self.assertTrue(controller.changed)
 
     def test_disable(self):
         agent = Mock()
@@ -599,7 +598,6 @@ class TestSetEnabled(TestCase):
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_enabled(False)
         self.assertEqual(agent.method_calls, [call.enabled(), call.disable()])
-        self.assertTrue(controller.changed)
 
 
 class TestSetName(TestCase):
@@ -608,7 +606,6 @@ class TestSetName(TestCase):
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_name(None)
         self.assertEqual(agent.method_calls, [])
-        self.assertFalse(controller.changed)
 
     def test_same(self):
         agent = Mock()
@@ -616,7 +613,6 @@ class TestSetName(TestCase):
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_name("agent-name")
         self.assertEqual(agent.method_calls, [call.name()])
-        self.assertFalse(controller.changed)
 
     def test_different(self):
         agent = Mock()
@@ -624,7 +620,6 @@ class TestSetName(TestCase):
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_name("new-name")
         self.assertEqual(agent.method_calls, [call.name(), call.set_name("new-name")])
-        self.assertTrue(controller.changed)
 
 
 class TestAssignments(TestCase):
@@ -633,7 +628,6 @@ class TestAssignments(TestCase):
         controller = make_bamboo_agent_controller(agent=agent)
         controller.update_assignments(None)
         self.assertEqual(agent.method_calls, [])
-        self.assertFalse(controller.changed)
 
     def test_keep_assignments(self):
         agent = Mock()
@@ -643,7 +637,6 @@ class TestAssignments(TestCase):
         self.assertEqual(
             agent.method_calls, [call.assignments()],
         )
-        self.assertFalse(controller.changed)
 
     def test_add_assignments(self):
         agent = Mock()
@@ -658,7 +651,6 @@ class TestAssignments(TestCase):
                 call.add_assignment("PLAN", 2),
             ],
         )
-        self.assertTrue(controller.changed)
 
     def test_delete_assignments(self):
         agent = Mock()
@@ -673,7 +665,6 @@ class TestAssignments(TestCase):
                 call.remove_assignment("PLAN", 2),
             ],
         )
-        self.assertTrue(controller.changed)
 
     def test_update_assignments(self):
         agent = Mock()
@@ -688,7 +679,6 @@ class TestAssignments(TestCase):
                 call.remove_assignment("PROJECT", 1),
             ],
         )
-        self.assertTrue(controller.changed)
 
 
 class TestBlockWhileBusy(TestCase):
