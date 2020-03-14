@@ -10,7 +10,8 @@ using the [REST API](https://docs.atlassian.com/atlassian-bamboo/REST/6.9.2).
 - [x] update agent name (as shown in Bamboo UI)
 - [x] [dedicating an agent](https://confluence.atlassian.com/bamboo/dedicating-an-agent-629015108.html)
 - [x] wait until agent is not busy
-- [x] no dependencies
+- [x] [check mode](https://docs.ansible.com/ansible/latest/user_guide/playbooks_checkmode.html) supported
+- [x] only python>=3.5 on agent required
 
 ## Usage
 install collection
