@@ -159,6 +159,21 @@ class TestNewAgentRegistration(BambooAgentIntegrationTest):
     ]
 
 
+class TestNewAgentWithCheckMode(BambooAgentIntegrationTest):
+    Uuid = "00000000-1111-2222-3333-444444444444"
+    Home = BambooHome().temp_uuid(Uuid)
+    CheckMode = True
+    ExpectChange = True
+    ExpectedRequests = [
+        templates.Pending.request(),
+        templates.Agents.request(),
+    ]
+    Responses = [
+        templates.Pending.response(uuid=Uuid),
+        templates.Agents.response([]),
+    ]
+
+
 class TestErrorHandling(BambooAgentIntegrationTest):
     Uuid = "00000000-1111-2222-3333-444444444444"
     Home = BambooHome().temp_uuid(Uuid)

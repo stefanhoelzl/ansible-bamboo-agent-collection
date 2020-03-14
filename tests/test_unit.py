@@ -526,18 +526,52 @@ def make_bamboo_agent_controller(
     return BambooAgentController(agent=agent, **kwargs)
 
 
+class AgentMock(Mock):
+    def __init__(
+        self,
+        busy=False,
+        check_mode=False,
+        authenticated=False,
+        available=False,
+        name="",
+        enabled=False,
+        assignments=None,
+    ):
+        super().__init__(spec=BambooAgent)
+        self.check_mode = check_mode
+        self.authenticated = Mock(return_value=authenticated)
+        self.name = Mock(return_value=name)
+        self.enabled = Mock(return_value=enabled)
+        self.assignments = Mock(return_value=assignments or dict())
+        self.set_name = Mock()
+        self.enable = Mock()
+        self.disable = Mock()
+        self.authenticate = Mock()
+        self.add_assignment = Mock()
+        self.remove_assignment = Mock()
+
+        self.available = Mock()
+        if isinstance(available, bool):
+            self.available.return_value = available
+        else:
+            self.available.side_effect = available
+
+        self.busy = Mock()
+        if isinstance(busy, bool):
+            self.busy.return_value = busy
+        else:
+            self.busy.side_effect = busy
+
+
 class TestRegistration(TestCase):
     def test_skip(self):
-        agent = Mock()
-        agent.authenticated.return_value = True
+        agent = AgentMock(authenticated=True)
         controller = make_bamboo_agent_controller(agent=agent)
         controller.register()
         self.assertEqual(agent.method_calls, [call.authenticated()])
 
     def test_new_agent(self):
-        agent = Mock()
-        agent.authenticated.return_value = False
-        agent.available.return_value = True
+        agent = AgentMock(authenticated=False, available=True)
         controller = make_bamboo_agent_controller(agent=agent)
         controller.register()
         self.assertEqual(
@@ -546,9 +580,7 @@ class TestRegistration(TestCase):
         )
 
     def test_retries(self):
-        agent = Mock()
-        agent.authenticated.return_value = False
-        agent.available.side_effect = [False, True]
+        agent = AgentMock(authenticated=False, available=[False, True])
         controller = make_bamboo_agent_controller(agent=agent)
         controller.register()
         self.assertEqual(
@@ -562,39 +594,42 @@ class TestRegistration(TestCase):
         )
 
     def test_timeout(self):
-        agent = Mock()
-        agent.authenticated.return_value = False
-        agent.available.return_value = False
+        agent = AgentMock(authenticated=False, available=False)
         controller = make_bamboo_agent_controller(
             agent=agent, timings=dict(authentication_timeout=0)
         )
         self.assertRaises(TimeoutError, controller.register)
 
+    def test_done_wait_in_check_mode(self):
+        agent = AgentMock(check_mode=True, authenticated=False)
+        controller = make_bamboo_agent_controller(agent=agent)
+        controller.register()
+        self.assertEqual(
+            agent.method_calls, [call.authenticated(), call.authenticate()],
+        )
+
 
 class TestSetEnabled(TestCase):
     def test_unchanged(self):
-        agent = Mock()
+        agent = AgentMock()
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_enabled(None)
         self.assertEqual(agent.method_calls, [])
 
     def test_different(self):
-        agent = Mock()
-        agent.enabled.return_value = True
+        agent = AgentMock(enabled=True)
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_enabled(True)
         self.assertEqual(agent.method_calls, [call.enabled()])
 
     def test_enable(self):
-        agent = Mock()
-        agent.enabled.return_value = False
+        agent = AgentMock(enabled=False)
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_enabled(True)
         self.assertEqual(agent.method_calls, [call.enabled(), call.enable()])
 
     def test_disable(self):
-        agent = Mock()
-        agent.enabled.return_value = True
+        agent = AgentMock(enabled=True)
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_enabled(False)
         self.assertEqual(agent.method_calls, [call.enabled(), call.disable()])
@@ -602,21 +637,19 @@ class TestSetEnabled(TestCase):
 
 class TestSetName(TestCase):
     def test_unchanged(self):
-        agent = Mock()
+        agent = AgentMock()
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_name(None)
         self.assertEqual(agent.method_calls, [])
 
     def test_same(self):
-        agent = Mock()
-        agent.name.return_value = "agent-name"
+        agent = AgentMock(name="agent-name")
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_name("agent-name")
         self.assertEqual(agent.method_calls, [call.name()])
 
     def test_different(self):
-        agent = Mock()
-        agent.name.return_value = "old-name"
+        agent = AgentMock(name="old-name")
         controller = make_bamboo_agent_controller(agent=agent)
         controller.set_name("new-name")
         self.assertEqual(agent.method_calls, [call.name(), call.set_name("new-name")])
@@ -624,14 +657,13 @@ class TestSetName(TestCase):
 
 class TestAssignments(TestCase):
     def test_unchanged(self):
-        agent = Mock()
+        agent = AgentMock()
         controller = make_bamboo_agent_controller(agent=agent)
         controller.update_assignments(None)
         self.assertEqual(agent.method_calls, [])
 
     def test_keep_assignments(self):
-        agent = Mock()
-        agent.assignments.return_value = {1: "PROJECT", 2: "PLAN"}
+        agent = AgentMock(assignments={1: "PROJECT", 2: "PLAN"})
         controller = make_bamboo_agent_controller(agent=agent)
         controller.update_assignments({1: "PROJECT", 2: "PLAN"})
         self.assertEqual(
@@ -639,8 +671,7 @@ class TestAssignments(TestCase):
         )
 
     def test_add_assignments(self):
-        agent = Mock()
-        agent.assignments.return_value = dict()
+        agent = AgentMock(assignments=dict())
         controller = make_bamboo_agent_controller(agent=agent)
         controller.update_assignments({1: "PROJECT", 2: "PLAN"})
         self.assertEqual(
@@ -653,8 +684,7 @@ class TestAssignments(TestCase):
         )
 
     def test_delete_assignments(self):
-        agent = Mock()
-        agent.assignments.return_value = {1: "PROJECT", 2: "PLAN"}
+        agent = AgentMock(assignments={1: "PROJECT", 2: "PLAN"})
         controller = make_bamboo_agent_controller(agent=agent)
         controller.update_assignments(dict())
         self.assertEqual(
@@ -667,8 +697,7 @@ class TestAssignments(TestCase):
         )
 
     def test_update_assignments(self):
-        agent = Mock()
-        agent.assignments.return_value = {1: "PROJECT", 2: "PLAN"}
+        agent = AgentMock(assignments={1: "PROJECT", 2: "PLAN"})
         controller = make_bamboo_agent_controller(agent=agent)
         controller.update_assignments({2: "PLAN", 3: "PROJECT"})
         self.assertEqual(
@@ -679,17 +708,6 @@ class TestAssignments(TestCase):
                 call.remove_assignment("PROJECT", 1),
             ],
         )
-
-
-class AgentMock(Mock):
-    def __init__(self, busy, check_mode=False):
-        super().__init__()
-        self.check_mode = check_mode
-        self.busy = Mock()
-        if isinstance(busy, bool):
-            self.busy.return_value = busy
-        else:
-            self.busy.side_effect = busy
 
 
 class TestBlockWhileBusy(TestCase):

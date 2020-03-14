@@ -19,6 +19,11 @@ def from_file(filename: str, changed=True, task=True):
 
 
 class TestResults(unittest.TestCase):
+    @from_file("pending.json")
+    def test_pending(self, pending):
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["ip"], "172.1.0.101")
+
     @from_file("registration.json")
     def test_registration(self, registration):
         self.assertEqual(len(registration), 1)
@@ -58,8 +63,8 @@ class TestResults(unittest.TestCase):
 
     @from_file("ansible.logs", task=False)
     def test_statistic(self, ansible_log: str):
-        self.assertIn("ok=13", ansible_log)
-        self.assertIn("changed=11", ansible_log)
+        self.assertIn("ok=15", ansible_log)
+        self.assertIn("changed=13", ansible_log)
         self.assertIn("failed=0", ansible_log)
 
 

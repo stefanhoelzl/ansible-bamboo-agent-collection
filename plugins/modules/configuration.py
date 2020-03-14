@@ -581,12 +581,13 @@ class BambooAgentController:
                 if not self.agent.available():
                     raise SelfRecoverableBambooAgentError()
 
-            retry(
-                available,
-                timeout=self.timings.get("authentication_timeout", 240),
-                interval=1.0,
-                msg="agent not available after authentication",
-            )
+            if not self.agent.check_mode:
+                retry(
+                    available,
+                    timeout=self.timings.get("authentication_timeout", 240),
+                    interval=1.0,
+                    msg="agent not available after authentication",
+                )
 
     def set_enabled(self, enabled: Optional[bool]):
         if enabled is not None and enabled != self.agent.enabled():
@@ -661,7 +662,9 @@ def main():
     except (BambooAgentError, urlrequest.URLError) as error:
         module.fail_json(msg=str(error))
 
-    module.exit_json(changed=controller.agent.changed, **controller.agent.info())
+    module.exit_json(
+        changed=controller.agent.changed, **(controller.agent.info() or dict())
+    )
 
 
 if __name__ == "__main__":
