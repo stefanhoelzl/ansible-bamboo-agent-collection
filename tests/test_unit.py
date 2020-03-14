@@ -681,10 +681,20 @@ class TestAssignments(TestCase):
         )
 
 
+class AgentMock(Mock):
+    def __init__(self, busy, check_mode=False):
+        super().__init__()
+        self.check_mode = check_mode
+        self.busy = Mock()
+        if isinstance(busy, bool):
+            self.busy.return_value = busy
+        else:
+            self.busy.side_effect = busy
+
+
 class TestBlockWhileBusy(TestCase):
     def test_agent_is_ready(self):
-        agent = Mock()
-        agent.busy.return_value = False
+        agent = AgentMock(busy=False)
         controller = make_bamboo_agent_controller(
             agent=agent, timings=dict(busy_timeout=None, busy_polling_interval=0)
         )
@@ -694,8 +704,7 @@ class TestBlockWhileBusy(TestCase):
         )
 
     def test_wait_while_agent_is_busy(self):
-        agent = Mock()
-        agent.busy.side_effect = [True, False]
+        agent = AgentMock(busy=[True, False])
         controller = make_bamboo_agent_controller(
             agent=agent, timings=dict(busy_timeout=None, busy_polling_interval=0)
         )
@@ -705,9 +714,15 @@ class TestBlockWhileBusy(TestCase):
         )
 
     def test_timeout(self):
-        agent = Mock()
-        agent.busy.return_value = True
+        agent = AgentMock(busy=True)
         controller = make_bamboo_agent_controller(
             agent=agent, timings=dict(busy_timeout=0, busy_polling_interval=0)
         )
         self.assertRaises(TimeoutError, controller.block_while_busy)
+
+    def test_dont_block_in_check_mode(self):
+        agent = AgentMock(busy=True, check_mode=True)
+        controller = make_bamboo_agent_controller(
+            agent=agent, timings=dict(busy_timeout=None, busy_polling_interval=0)
+        )
+        controller.block_while_busy()

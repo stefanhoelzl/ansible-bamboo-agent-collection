@@ -621,12 +621,13 @@ class BambooAgentController:
             if self.agent.busy():
                 raise AgentBusy()
 
-        retry(
-            block,
-            timeout=self.timings.get("busy_timeout", None),
-            interval=self.timings.get("busy_polling_interval", 60),
-            msg="agent busy",
-        )
+        if not self.agent.check_mode:
+            retry(
+                block,
+                timeout=self.timings.get("busy_timeout", None),
+                interval=self.timings.get("busy_polling_interval", 60),
+                msg="agent busy",
+            )
 
 
 def main():
