@@ -384,9 +384,11 @@ class BambooAgent:
         credentials: Dict[str, str],
         http_timeout: int,
         request_handler=HttpRequestHandler,
+        check_mode: bool = False,
     ):
         self.home = home
         self.changed = False
+        self.check_mode = check_mode
         self.request_handler = request_handler(
             host=host,
             auth=(credentials["user"], credentials["password"]),
@@ -420,6 +422,19 @@ class BambooAgent:
         if (response.status_code == expected_status_code) or valid_redirect:
             return response
         raise ServerCommunicationError(request, response)
+
+    def change(
+        self,
+        request: Request,
+        allow_redirect: bool = False,
+        read_response_data: bool = True,
+    ) -> Optional[Response]:
+        if not self.check_mode:
+            return self.request(
+                request,
+                allow_redirect=allow_redirect,
+                read_response_data=read_response_data,
+            )
 
     def uuid(self) -> Optional[str]:
         config_file = Path(self.home, "bamboo-agent.cfg.xml")
@@ -467,7 +482,7 @@ class BambooAgent:
         uuid = self.uuid()
         if uuid is None:
             raise MissingUuid(self.home)
-        self.request(
+        self.change(
             Request(f"/rest/api/latest/agent/authentication/{uuid}", method=Method.Put,)
         )
 
@@ -475,7 +490,7 @@ class BambooAgent:
         return self.info()["enabled"]
 
     def disable(self):
-        self.request(
+        self.change(
             Request(
                 f"/admin/agent/disableAgent.action?agentId={self.id()}",
                 method=Method.Post,
@@ -485,7 +500,7 @@ class BambooAgent:
         )
 
     def enable(self):
-        self.request(
+        self.change(
             Request(
                 f"/admin/agent/enableAgent.action?agentId={self.id()}",
                 method=Method.Post,
@@ -502,7 +517,7 @@ class BambooAgent:
         return self.info()["name"]
 
     def set_name(self, name: str):
-        self.request(
+        self.change(
             Request(
                 f"/admin/agent/updateAgentDetails.action?agentId={ self.id() }&agentName={ name }&save=Update",
                 method=Method.Post,
@@ -522,7 +537,7 @@ class BambooAgent:
         }
 
     def add_assignment(self, etype: str, eid: int):
-        self.request(
+        self.change(
             Request(
                 f"/rest/api/latest/agent/assignment?executorType=AGENT&executorId={ self.id() }&assignmentType={ etype }&entityId={ eid }",
                 method=Method.Post,
@@ -530,7 +545,7 @@ class BambooAgent:
         )
 
     def remove_assignment(self, etype: str, eid: int):
-        self.request(
+        self.change(
             Request(
                 f"/rest/api/latest/agent/assignment?executorType=AGENT&executorId={ self.id() }&assignmentType={ etype }&entityId={ eid }",
                 method=Method.Delete,
@@ -629,7 +644,7 @@ class BambooAgentController:
 
 
 def main():
-    module = AnsibleModule(argument_spec=ArgumentSpec)
+    module = AnsibleModule(argument_spec=ArgumentSpec, supports_check_mode=True)
 
     enabled = module.params.pop("enabled")
     name = module.params.pop("name")
@@ -644,6 +659,7 @@ def main():
             home=module.params.pop("home"),
             credentials=module.params.pop("credentials"),
             http_timeout=http_timeout,
+            check_mode=module.check_mode,
         ),
         timings=timings,
         **module.params,

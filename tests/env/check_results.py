@@ -50,10 +50,16 @@ class TestResults(unittest.TestCase):
         self.assertEqual(unchanged[0]["name"], "new-name")
         self.assertFalse(unchanged[0]["enabled"])
 
+    @from_file("check_mode.json")
+    def test_check_mode(self, check_mode):
+        self.assertEqual(len(check_mode), 1)
+        self.assertEqual(check_mode[0]["name"], "new-name")
+        self.assertFalse(check_mode[0]["enabled"])
+
     @from_file("ansible.logs", task=False)
     def test_statistic(self, ansible_log: str):
-        self.assertIn("ok=11", ansible_log)
-        self.assertIn("changed=9", ansible_log)
+        self.assertIn("ok=13", ansible_log)
+        self.assertIn("changed=11", ansible_log)
         self.assertIn("failed=0", ansible_log)
 
 

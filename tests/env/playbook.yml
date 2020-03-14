@@ -95,3 +95,23 @@
       password: "admin"
       status_code: 200
       dest: "/results/unchanged.json"
+  - name: Check Mode
+    check_mode: yes
+    stefanhoelzl.bamboo_agent.configuration:
+      host: "{{ bamboo_server }}"
+      home: "{{ bamboo_home }}"
+      name: "old-name"
+      enabled: true
+      assignments: []
+      credentials:
+        user: "{{ bamboo_user }}"
+        password: "{{ bamboo_password }}"
+  - name: Query check mode
+    uri:
+      url: "http://bamboo-server:8085/rest/api/latest/agent/"
+      method: GET
+      force_basic_auth: yes
+      user: "admin"
+      password: "admin"
+      status_code: 200
+      dest: "/results/check_mode.json"

@@ -172,6 +172,7 @@ def make_bamboo_agent(
     request_handler: Optional[MockRequestHandler] = None,
     home: Optional[BambooHome] = None,
     http_timeout: int = 0,
+    check_mode: bool = False,
 ) -> BambooAgentController:
     return BambooAgent(
         host="http://localhost",
@@ -179,6 +180,7 @@ def make_bamboo_agent(
         credentials=dict(user="", password=""),
         request_handler=request_handler or MockRequestHandler(),
         http_timeout=http_timeout,
+        check_mode=check_mode,
     )
 
 
@@ -227,6 +229,22 @@ class TestRequest(RequestTestCase):
         agent = make_bamboo_agent(rh, http_timeout=0)
         agent.request(Request("/"))
         self.assertEqual(rh.timeout, 0)
+
+
+class TestChange(RequestTestCase):
+    def test_forward_request_and_response(self):
+        response = Response()
+        request = Request("/my/path")
+        rh = MockRequestHandler(responses=[response])
+        agent = make_bamboo_agent(rh)
+        self.assertEqual(agent.change(request), response)
+        self.assert_requests(rh.requests, request)
+
+    def test_suppress_change_in_check_mode(self):
+        rh = MockRequestHandler(responses=[Response()])
+        agent = make_bamboo_agent(rh, check_mode=True)
+        agent.change(Request("/"))
+        self.assertEqual(len(rh.requests), 0)
 
 
 class TestBambooAgent(RequestTestCase):
@@ -501,7 +519,7 @@ class TestBambooAgent(RequestTestCase):
 def make_bamboo_agent_controller(
     agent: BambooAgent = None, **kwargs
 ) -> BambooAgentController:
-    return BambooAgentController(agent=agent, **kwargs,)
+    return BambooAgentController(agent=agent, **kwargs)
 
 
 class TestRegistration(TestCase):

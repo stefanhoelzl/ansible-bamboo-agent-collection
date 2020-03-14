@@ -1,5 +1,6 @@
 import sys
 import json
+import textwrap
 import threading
 import subprocess
 from pathlib import Path
@@ -72,6 +73,7 @@ class BambooAgentIntegrationTest(RequestTestCase):
     ExpectedResult = dict()
     ExpectChange = False
     ExpectFailure = False
+    CheckMode = False
 
     _HttpServer = HttpServerMock()
 
@@ -106,8 +108,9 @@ class BambooAgentIntegrationTest(RequestTestCase):
                         ANSIBLE_MODULE_ARGS=dict(
                             host=self._HttpServer.url,
                             home=str(self.Home.create(tempdir)),
+                            _ansible_check_mode=self.CheckMode,
                             **arguments,
-                        )
+                        ),
                     ),
                     arguments_file,
                 )
@@ -123,7 +126,16 @@ class BambooAgentIntegrationTest(RequestTestCase):
             )
 
         if process.returncode and not self.ExpectFailure:
-            raise RuntimeError(process.returncode, process.stdout, process.stderr)
+            error_msg = "\n".join(
+                [
+                    f"RETURN_CODE: {process.returncode}",
+                    "STDOUT:",
+                    textwrap.indent(process.stdout.decode("utf-8"), prefix="  "),
+                    "STDERR:",
+                    textwrap.indent(process.stderr.decode("utf-8"), prefix="  "),
+                ]
+            )
+            raise RuntimeError(error_msg)
         return json.loads(process.stdout), self._HttpServer.requests
 
 
@@ -179,6 +191,29 @@ class TestUnchanged(BambooAgentIntegrationTest):
         templates.Agents.response([dict(id=1234, enabled=True, name="agent-name")]),
         templates.SearchAssignment.response([dict(key="PL", id=1)]),
         templates.Assignments.response([dict(executableType="PLAN", executableId=1)]),
+    ]
+
+
+class TestCheckMode(BambooAgentIntegrationTest):
+    Arguments = dict(
+        enabled=True, name="new-name", assignments=[dict(type="plan", key="PL")],
+    )
+    CheckMode = True
+    Home = BambooHome().config(aid=1234)
+    ExpectChange = True
+    ExpectedRequests = [
+        templates.Pending.request(),
+        templates.Agents.request(),
+        templates.SearchAssignment.request(etype="PLAN"),
+        templates.Assignments.request(agent_id=1234),
+    ]
+    Responses = [
+        ActionResponse([]),
+        templates.Agents.response([dict(id=1234, enabled=False, name="old-name")]),
+        templates.SearchAssignment.response([dict(key="PL", id=1)]),
+        templates.Assignments.response(
+            [dict(executableType="PROJECT", executableId=2)]
+        ),
     ]
 
 
