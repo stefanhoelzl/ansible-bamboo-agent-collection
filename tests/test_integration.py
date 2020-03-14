@@ -157,6 +157,7 @@ class TestNewAgentRegistration(BambooAgentIntegrationTest):
         ),
         templates.Agents.response([dict(id=1234, enabled=True)]),
     ]
+    # ExpectedResult = dict(id=1234, enabled=True)
 
 
 class TestNewAgentWithCheckMode(BambooAgentIntegrationTest):
@@ -207,6 +208,7 @@ class TestUnchanged(BambooAgentIntegrationTest):
         templates.SearchAssignment.response([dict(key="PL", id=1)]),
         templates.Assignments.response([dict(executableType="PLAN", executableId=1)]),
     ]
+    # ExpectedResult = dict(id=1234, name="agent-name", enabled=True)
 
 
 class TestCheckMode(BambooAgentIntegrationTest):
@@ -230,6 +232,7 @@ class TestCheckMode(BambooAgentIntegrationTest):
             [dict(executableType="PROJECT", executableId=2)]
         ),
     ]
+    # ExpectedResult = dict(id=1234, enabled=False, name="new-name")
 
 
 class TestAgentDisable(BambooAgentIntegrationTest):
@@ -246,6 +249,7 @@ class TestAgentDisable(BambooAgentIntegrationTest):
         templates.Agents.response([dict(id=1234, enabled=True)]),
         templates.Disable.response(),
     ]
+    # ExpectedResult = dict(id=1234, enabled=False)
 
 
 class TestSetAgentName(BambooAgentIntegrationTest):
@@ -262,6 +266,7 @@ class TestSetAgentName(BambooAgentIntegrationTest):
         templates.Agents.response([dict(id=1234, name="old-name")]),
         templates.SetName.response(),
     ]
+    # ExpectedResult = dict(id=1234, name="new-name")
 
 
 class TestAssignments(BambooAgentIntegrationTest):
@@ -293,6 +298,7 @@ class TestAssignments(BambooAgentIntegrationTest):
         templates.AddAssignment.response(),
         templates.RemoveAssignment.response(),
     ]
+    # ExpectedResult = dict(assignments={1: "PROJECT", 0: "PLAN"})
 
 
 class TestBlockWhileBusy(BambooAgentIntegrationTest):
@@ -308,6 +314,7 @@ class TestBlockWhileBusy(BambooAgentIntegrationTest):
         templates.Agents.response([dict(id=1234, busy=True)]),
         templates.Agents.response([dict(id=1234, busy=False)]),
     ]
+    # ExpectedResult = dict(id=1234, busy=False)
 
 
 class TestReturnValues(BambooAgentIntegrationTest):

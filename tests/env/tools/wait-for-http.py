@@ -29,7 +29,7 @@ if __name__ == "__main__":
     if status_code != args.status_code:
         print(f"wrong response code: {status_code}")
         exit(1)
-    else:
-        print(f"waited { (time.time() - start) / 60 } min for { args.url }", flush=True)
-        if cmd:
-            exit(subprocess.run(cmd).returncode)
+
+    print(f"waited { (time.time() - start) / 60 } min for { args.url }", flush=True)
+    if cmd:
+        exit(subprocess.run(cmd).returncode)
