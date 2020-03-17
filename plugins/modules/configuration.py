@@ -191,6 +191,7 @@ import time
 import base64
 from enum import Enum
 from pathlib import Path
+from copy import deepcopy
 from functools import lru_cache
 import urllib.request as urlrequest
 from typing import List, Dict, Optional, Union, Tuple
@@ -376,6 +377,35 @@ def retry(query, timeout: Optional[float], interval: float, msg: Optional[str] =
         time.sleep(interval)
 
 
+class State:
+    def __init__(self):
+        self.current = dict()
+        self.initial = dict()
+
+    @property
+    def changed(self):
+        return self.current != self.initial
+
+    def set(self, key, value):
+        if key not in self.initial:
+            self.initial[key] = deepcopy(value)
+        self.current[key] = value
+
+    def __getitem__(self, key):
+        return self.current.setdefault(key, dict())
+
+
+def _update_state(key: str):
+    def decorator(fn):
+        def wrapper(self, *args, **kwargs):
+            self.state.set(key, fn(self, *args, **kwargs))
+            return self.state[key]
+
+        return wrapper
+
+    return decorator
+
+
 class BambooAgent:
     def __init__(
         self,
@@ -387,8 +417,8 @@ class BambooAgent:
         check_mode: bool = False,
     ):
         self.home = home
-        self.changed = False
         self.check_mode = check_mode
+        self.state = State()
         self.request_handler = request_handler(
             host=host,
             auth=(credentials["user"], credentials["password"]),
@@ -404,6 +434,7 @@ class BambooAgent:
         ).content["searchResults"]
 
     @lru_cache()
+    @_update_state("info")
     def info(self):
         agents = self.request(Request("/rest/api/latest/agent/")).content
         return next((agent for agent in agents if agent["id"] == self.id()), None)
@@ -423,12 +454,13 @@ class BambooAgent:
             return response
         raise ServerCommunicationError(request, response)
 
-    def change(self, request: Request, allow_redirect=False):
-        self.changed = True
+    def change(self, request: Request, state_update, allow_redirect=False):
         if not self.check_mode:
             self.request(
                 request, allow_redirect=allow_redirect, read_response_data=False
             )
+        if state_update:
+            state_update(self.state)
 
     def uuid(self) -> Optional[str]:
         config_file = Path(self.home, "bamboo-agent.cfg.xml")
@@ -451,6 +483,7 @@ class BambooAgent:
                 return int(match.group(1))
         return None
 
+    @_update_state("authenticated")
     def authenticated(self) -> bool:
         uuid = self.uuid()
         if uuid is None:
@@ -477,7 +510,10 @@ class BambooAgent:
         if uuid is None:
             raise MissingUuid(self.home)
         self.change(
-            Request(f"/rest/api/latest/agent/authentication/{uuid}", method=Method.Put,)
+            Request(
+                f"/rest/api/latest/agent/authentication/{uuid}", method=Method.Put,
+            ),
+            state_update=lambda state: state.set("authenticated", True),
         )
 
     def enabled(self) -> bool:
@@ -489,6 +525,7 @@ class BambooAgent:
                 f"/admin/agent/disableAgent.action?agentId={self.id()}",
                 method=Method.Post,
             ),
+            state_update=lambda state: state["info"].__setitem__("enabled", False),
             allow_redirect=True,
         )
 
@@ -498,6 +535,7 @@ class BambooAgent:
                 f"/admin/agent/enableAgent.action?agentId={self.id()}",
                 method=Method.Post,
             ),
+            state_update=lambda state: state["info"].__setitem__("enabled", True),
             allow_redirect=True,
         )
 
@@ -514,9 +552,12 @@ class BambooAgent:
                 f"/admin/agent/updateAgentDetails.action?agentId={ self.id() }&agentName={ name }&save=Update",
                 method=Method.Post,
             ),
+            state_update=lambda state: state["info"].__setitem__("name", name),
             allow_redirect=True,
         )
 
+    @lru_cache()
+    @_update_state("assignments")
     def assignments(self) -> Dict[int, str]:
         return {
             assignment["executableId"]: assignment["executableType"]
@@ -533,6 +574,7 @@ class BambooAgent:
                 f"/rest/api/latest/agent/assignment?executorType=AGENT&executorId={ self.id() }&assignmentType={ etype }&entityId={ eid }",
                 method=Method.Post,
             ),
+            state_update=lambda state: state["assignments"].__setitem__(eid, etype),
         )
 
     def remove_assignment(self, etype: str, eid: int):
@@ -540,7 +582,8 @@ class BambooAgent:
             Request(
                 f"/rest/api/latest/agent/assignment?executorType=AGENT&executorId={ self.id() }&assignmentType={ etype }&entityId={ eid }",
                 method=Method.Delete,
-            )
+            ),
+            state_update=lambda state: state["assignments"].pop(eid),
         )
 
     def resolve_assignments(
@@ -663,7 +706,10 @@ def main():
         module.fail_json(msg=str(error))
 
     module.exit_json(
-        changed=controller.agent.changed, **(controller.agent.info() or dict())
+        changed=controller.agent.state.changed,
+        authenticated=controller.agent.state["authenticated"],
+        assignments=controller.agent.state["assignments"],
+        **(controller.agent.state["info"] or dict()),
     )
 
 

@@ -90,8 +90,8 @@ class BambooAgentIntegrationTest(RequestTestCase):
             self.assertTrue(result["failed"])
         else:
             self.assertEqual(result.pop("changed"), self.ExpectChange)
-        for key, value in self.ExpectedResult.items():
-            self.assertEqual(result[key], value)
+        for key, expected in self.ExpectedResult.items():
+            self.assertEqual(result[key], expected, key)
 
     def _execute_module_in_process(self):
         with TemporaryDirectory() as tempdir:
@@ -157,7 +157,7 @@ class TestNewAgentRegistration(BambooAgentIntegrationTest):
         ),
         templates.Agents.response([dict(id=1234, enabled=True)]),
     ]
-    # ExpectedResult = dict(id=1234, enabled=True)
+    ExpectedResult = dict(id=1234, enabled=True, authenticated=True)
 
 
 class TestNewAgentWithCheckMode(BambooAgentIntegrationTest):
@@ -167,12 +167,11 @@ class TestNewAgentWithCheckMode(BambooAgentIntegrationTest):
     ExpectChange = True
     ExpectedRequests = [
         templates.Pending.request(),
-        templates.Agents.request(),
     ]
     Responses = [
         templates.Pending.response(uuid=Uuid),
-        templates.Agents.response([]),
     ]
+    ExpectedResult = dict(authenticated=True)
 
 
 class TestErrorHandling(BambooAgentIntegrationTest):
@@ -208,7 +207,7 @@ class TestUnchanged(BambooAgentIntegrationTest):
         templates.SearchAssignment.response([dict(key="PL", id=1)]),
         templates.Assignments.response([dict(executableType="PLAN", executableId=1)]),
     ]
-    # ExpectedResult = dict(id=1234, name="agent-name", enabled=True)
+    ExpectedResult = dict(id=1234, name="agent-name", enabled=True)
 
 
 class TestCheckMode(BambooAgentIntegrationTest):
@@ -232,7 +231,7 @@ class TestCheckMode(BambooAgentIntegrationTest):
             [dict(executableType="PROJECT", executableId=2)]
         ),
     ]
-    # ExpectedResult = dict(id=1234, enabled=False, name="new-name")
+    ExpectedResult = dict(id=1234, enabled=True, name="new-name")
 
 
 class TestAgentDisable(BambooAgentIntegrationTest):
@@ -249,7 +248,7 @@ class TestAgentDisable(BambooAgentIntegrationTest):
         templates.Agents.response([dict(id=1234, enabled=True)]),
         templates.Disable.response(),
     ]
-    # ExpectedResult = dict(id=1234, enabled=False)
+    ExpectedResult = dict(id=1234, enabled=False)
 
 
 class TestSetAgentName(BambooAgentIntegrationTest):
@@ -266,7 +265,7 @@ class TestSetAgentName(BambooAgentIntegrationTest):
         templates.Agents.response([dict(id=1234, name="old-name")]),
         templates.SetName.response(),
     ]
-    # ExpectedResult = dict(id=1234, name="new-name")
+    ExpectedResult = dict(id=1234, name="new-name")
 
 
 class TestAssignments(BambooAgentIntegrationTest):
@@ -298,12 +297,13 @@ class TestAssignments(BambooAgentIntegrationTest):
         templates.AddAssignment.response(),
         templates.RemoveAssignment.response(),
     ]
-    # ExpectedResult = dict(assignments={1: "PROJECT", 0: "PLAN"})
+    ExpectedResult = dict(assignments={"0": "PLAN", "1": "PROJECT"})
 
 
 class TestBlockWhileBusy(BambooAgentIntegrationTest):
     Home = BambooHome().config(aid=1234)
     Arguments = dict(block_while_busy=True, timings=dict(interval_busy_polling=0))
+    ExpectChange = True
     ExpectedRequests = [
         templates.Pending.request(),
         templates.Agents.request(),
@@ -314,7 +314,7 @@ class TestBlockWhileBusy(BambooAgentIntegrationTest):
         templates.Agents.response([dict(id=1234, busy=True)]),
         templates.Agents.response([dict(id=1234, busy=False)]),
     ]
-    # ExpectedResult = dict(id=1234, busy=False)
+    ExpectedResult = dict(id=1234, busy=False)
 
 
 class TestReturnValues(BambooAgentIntegrationTest):

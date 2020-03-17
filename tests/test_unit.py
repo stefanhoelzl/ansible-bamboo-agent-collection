@@ -10,6 +10,7 @@ from . import templates
 from plugins.modules.configuration import (
     BambooAgentController,
     BambooAgent,
+    State,
     Request,
     Response,
     Method,
@@ -168,6 +169,44 @@ class MockRequestHandler:
         return response
 
 
+class TestState(TestCase):
+    def test_set_get(self):
+        state = State()
+        state.set("key", "value")
+        self.assertEqual(state["key"], "value")
+
+    def test_get_default_dict(self):
+        state = State()
+        self.assertEqual(state["key"], dict())
+
+    def test_init_value(self):
+        state = State()
+        state.set("key", "value")
+        self.assertEqual(state.initial, dict(key="value"))
+        self.assertEqual(state.current, dict(key="value"))
+
+    def test_update_value(self):
+        state = State()
+        state.set("key", "initial")
+        state.set("key", "current")
+        self.assertEqual(state.current, dict(key="current"))
+        self.assertEqual(state.initial, dict(key="initial"))
+
+    def test_copy_value(self):
+        state = State()
+        state.set("key", dict(sub="initial"))
+        state["key"]["sub"] = "current"
+        self.assertEqual(state.initial, dict(key=dict(sub="initial")))
+        self.assertEqual(state.current, dict(key=dict(sub="current")))
+
+    def test_changed(self):
+        state = State()
+        state.set("key", "initial")
+        self.assertFalse(state.changed)
+        state.set("key", "updated")
+        self.assertTrue(state.changed)
+
+
 def make_bamboo_agent(
     request_handler: Optional[MockRequestHandler] = None,
     home: Optional[BambooHome] = None,
@@ -236,19 +275,21 @@ class TestChange(RequestTestCase):
         request = Request("/my/path")
         rh = MockRequestHandler(responses=[Response()])
         agent = make_bamboo_agent(rh)
-        agent.change(request)
+        agent.change(request, state_update=None)
         self.assert_requests(rh.requests, request)
-
-    def test_set_changed(self):
-        agent = make_bamboo_agent(MockRequestHandler(responses=[Response()]))
-        agent.change(Request("/my/path"))
-        self.assertTrue(agent.changed)
 
     def test_suppress_change_in_check_mode(self):
         rh = MockRequestHandler()
         agent = make_bamboo_agent(rh, check_mode=True)
-        agent.change(Request("/"))
+        agent.change(Request("/"), state_update=None)
         self.assertEqual(len(rh.requests), 0)
+
+    def test_change_state(self):
+        rh = MockRequestHandler(responses=[ActionResponse()])
+        agent = make_bamboo_agent(rh)
+        agent.state.set("key", dict(sub="value"))
+        agent.change(Request("/"), state_update=lambda s: s["key"].pop("sub"))
+        self.assertEqual(agent.state["key"], dict())
 
 
 class TestBambooAgent(RequestTestCase):
@@ -261,6 +302,7 @@ class TestBambooAgent(RequestTestCase):
                 ),
             )
             self.assertEqual(agent.info(), dict(id=1234, key="value"))
+            self.assertEqual(agent.state["info"], dict(id=1234, key="value"))
 
     def test_info_caching(self):
         request_handler = MockRequestHandler(
@@ -325,6 +367,7 @@ class TestBambooAgent(RequestTestCase):
                 ),
             )
             self.assertTrue(agent.authenticated())
+            self.assertTrue(agent.state["authenticated"])
 
     def test_authenticated_no_uuid(self):
         with BambooHome().temp() as home:
@@ -360,8 +403,10 @@ class TestBambooAgent(RequestTestCase):
         rh = MockRequestHandler(responses=[templates.Authentication.response()])
         with BambooHome().temp_uuid(uuid="0000").temp() as home:
             agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.state.set("authenticated", False)
             agent.authenticate()
         self.assert_requests(rh.requests, templates.Authentication.request(uuid="0000"))
+        self.assertTrue(agent.state["authenticated"])
 
     def test_authenticate_no_uuid(self):
         with BambooHome().temp() as home:
@@ -382,8 +427,10 @@ class TestBambooAgent(RequestTestCase):
         rh = MockRequestHandler(responses=[templates.Disable.response()])
         with BambooHome().config(aid=1234).temp() as home:
             agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.state.set("info", dict(enabled=True))
             agent.disable()
         self.assert_requests(rh.requests, templates.Disable.request(agent_id=1234))
+        self.assertFalse(agent.state["info"]["enabled"])
 
     def test_disable_with_redirect(self):
         rh = MockRequestHandler(responses=[templates.Disable.response(status_code=302)])
@@ -395,8 +442,10 @@ class TestBambooAgent(RequestTestCase):
         rh = MockRequestHandler(responses=[templates.Enable.response()])
         with BambooHome().config(aid=1234).temp() as home:
             agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.state.set("info", dict(enabled=False))
             agent.enable()
         self.assert_requests(rh.requests, templates.Enable.request(agent_id=1234))
+        self.assertTrue(agent.state["info"]["enabled"])
 
     def test_enable_with_redirect(self):
         rh = MockRequestHandler(responses=[templates.Enable.response(status_code=302)])
@@ -445,6 +494,7 @@ class TestBambooAgent(RequestTestCase):
         self.assert_requests(
             rh.requests, templates.SetName.request(agent_id=1234, name="new-name")
         )
+        self.assertEqual(agent.state["info"]["name"], "new-name")
 
     def test_set_name_with_redirect(self):
         rh = MockRequestHandler(responses=[templates.SetName.response(status_code=302)])
@@ -463,6 +513,7 @@ class TestBambooAgent(RequestTestCase):
         with BambooHome().config(aid=1234).temp() as home:
             agent = make_bamboo_agent(home=home, request_handler=rh)
             self.assertEqual(agent.assignments(), {123456: "PROJECT"})
+            self.assertEqual(agent.state["assignments"], {123456: "PROJECT"})
         self.assert_requests(rh.requests, templates.Assignments.request(agent_id=1234))
 
     def test_add_assignment(self):
@@ -474,16 +525,19 @@ class TestBambooAgent(RequestTestCase):
             rh.requests,
             templates.AddAssignment.request(agent_id=1234, eid=2, etype="PROJECT"),
         )
+        self.assertEqual(agent.state["assignments"], {2: "PROJECT"})
 
     def test_remove_assignment(self):
         rh = MockRequestHandler(responses=[templates.RemoveAssignment.response()])
         with BambooHome().config(aid=1234).temp() as home:
             agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.state.set("assignments", {2: "PROJECT"})
             agent.remove_assignment(etype="PROJECT", eid=2)
         self.assert_requests(
             rh.requests,
             templates.RemoveAssignment.request(agent_id=1234, eid=2, etype="PROJECT"),
         )
+        self.assertEqual(agent.state["assignments"], dict())
 
     def test_resolve_assignments(self):
         rh = MockRequestHandler(
