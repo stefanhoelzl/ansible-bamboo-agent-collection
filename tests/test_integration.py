@@ -332,3 +332,51 @@ class TestReturnValues(BambooAgentIntegrationTest):
     ExpectedResult = dict(
         id=1234, name="agent-name", enabled=True, busy=False, active=True
     )
+
+
+class TestDiff(BambooAgentIntegrationTest):
+    Home = BambooHome().config(aid=1234)
+    ExpectedRequests = [
+        templates.Pending.request(),
+        templates.Agents.request(),
+    ]
+    Responses = [
+        ActionResponse([]),
+        templates.Agents.response(
+            [dict(id=1234, name="agent-name", enabled=True, busy=False, active=True)]
+        ),
+    ]
+    ExpectedResult = dict(
+        diff=dict(
+            before=textwrap.dedent(
+                """
+                {
+                    "assignments": {},
+                    "authenticated": true,
+                    "info": {
+                        "active": true,
+                        "busy": false,
+                        "enabled": true,
+                        "id": 1234,
+                        "name": "agent-name"
+                    }
+                }
+                """
+            ).strip(),
+            after=textwrap.dedent(
+                """
+                {
+                    "assignments": {},
+                    "authenticated": true,
+                    "info": {
+                        "active": true,
+                        "busy": false,
+                        "enabled": true,
+                        "id": 1234,
+                        "name": "agent-name"
+                    }
+                }
+                """
+            ).strip(),
+        )
+    )

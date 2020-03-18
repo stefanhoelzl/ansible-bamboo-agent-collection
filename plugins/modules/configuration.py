@@ -392,7 +392,9 @@ class State:
         self.current[key] = value
 
     def __getitem__(self, key):
-        return self.current.setdefault(key, dict())
+        if key not in self.current:
+            self.set(key, dict())
+        return self.current[key]
 
 
 def _update_state(key: str):
@@ -709,6 +711,10 @@ def main():
         changed=controller.agent.state.changed,
         authenticated=controller.agent.state["authenticated"],
         assignments=controller.agent.state["assignments"],
+        diff=dict(
+            before=json.dumps(controller.agent.state.initial, indent=4, sort_keys=True),
+            after=json.dumps(controller.agent.state.current, indent=4, sort_keys=True),
+        ),
         **(controller.agent.state["info"] or dict()),
     )
 
