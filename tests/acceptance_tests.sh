@@ -12,10 +12,10 @@ chmod -R 0777 server/data
 # ansible cleanup and preperation
 mkdir -p results
 chmod 0777 results
-cp playbook.yml ansible/project/playbook.yml
+python3 playbook.py ansible/project/playbook.json
 ../../build.sh
 ansible-galaxy collection install ../../release/stefanhoelzl-bamboo_agent* -p ./ansible/project/collections
-ANSIBLE_COLLECTIONS_PATHS=./ansible/project/collections ansible-playbook playbook.yml --syntax-check
+ANSIBLE_COLLECTIONS_PATHS=./ansible/project/collections ansible-playbook ansible/project/playbook.json --syntax-check
 
 # run test environment
 docker-compose down
@@ -26,7 +26,7 @@ docker-compose logs agent > results/agent.logs
 docker-compose down
 
 # check results
-python3 check_results.py
+python3 playbook.py
 
 # successfully finished when arrived here
 echo "acceptance tests finished successfully"

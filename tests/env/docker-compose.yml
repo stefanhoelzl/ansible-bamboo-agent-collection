@@ -34,7 +34,7 @@ services:
         ipv4_address: 172.1.0.101
   ansible:
     build: ./ansible
-    command: ["python", "/tools/wait-for-http.py", "http://bamboo-server:8085", "ansible-playbook", "playbook.yml"]
+    command: ["python", "/tools/wait-for-http.py", "http://bamboo-server:8085", "ansible-playbook", "playbook.json"]
     volumes:
     - ./ansible/project:/project
     - ./tools:/tools

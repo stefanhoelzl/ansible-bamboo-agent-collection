@@ -1,4 +1,4 @@
 server/data/
 results/
 ansible/project/collections
-ansible/project/playbook.yml
+ansible/project/playbook.json
