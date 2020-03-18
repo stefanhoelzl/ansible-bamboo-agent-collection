@@ -11,6 +11,7 @@ using the [REST API](https://docs.atlassian.com/atlassian-bamboo/REST/6.9.2).
 - [x] [dedicating an agent](https://confluence.atlassian.com/bamboo/dedicating-an-agent-629015108.html)
 - [x] wait until agent is not busy
 - [x] [check mode](https://docs.ansible.com/ansible/latest/user_guide/playbooks_checkmode.html) supported
+- [x] [diff](https://docs.ansible.com/ansible/latest/user_guide/playbooks_checkmode.html#showing-differences-with-diff) supported
 - [x] only python>=3.5 on agent required
 
 ## Usage
@@ -62,11 +63,11 @@ $ git clone git clone https://github.com/stefanhoelzl/ansible-bamboo-agent-colle
 $ cd ansible-bamboo-agent-collection
 ```
 
-Run 
+build the collection 
 ```bash 
 $ ./build.sh
 ```
-to build the collection. The built collection can be found in the `release` directory.
+The built collection can be found in the `release` directory.
 
 install the collection
 ```bash
