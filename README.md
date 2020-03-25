@@ -5,14 +5,15 @@ Ansible collection for bamboo remote agent configuration
 using the [REST API](https://docs.atlassian.com/atlassian-bamboo/REST/6.9.2).
 
 ## Features
-- [x] [agent authentication](https://confluence.atlassian.com/bamboo/agent-authentication-289277196.html)
-- [x] [enable/disable an agent](https://confluence.atlassian.com/bamboo/disabling-or-deleting-an-agent-289277174.html)
-- [x] update agent name (as shown in Bamboo UI)
-- [x] [dedicating an agent](https://confluence.atlassian.com/bamboo/dedicating-an-agent-629015108.html)
-- [x] wait until agent is not busy
-- [x] [check mode](https://docs.ansible.com/ansible/latest/user_guide/playbooks_checkmode.html) supported
-- [x] [diff](https://docs.ansible.com/ansible/latest/user_guide/playbooks_checkmode.html#showing-differences-with-diff) supported
-- [x] only python>=3.5 on agent required
+ * [agent authentication](https://confluence.atlassian.com/bamboo/agent*authentication-289277196.html)
+ * [enable/disable an agent](https://confluence.atlassian.com/bamboo/disabling-or-deleting-an-agent-289277174.html)
+ * delete agent from Bamboo Server
+ * update agent name (as shown in Bamboo UI)
+ * [dedicating an agent](https://confluence.atlassian.com/bamboo/dedicating-an-agent-629015108.html)
+ * wait until agent is not busy
+ * [check mode](https://docs.ansible.com/ansible/latest/user_guide/playbooks_checkmode.html) support
+ * [diff](https://docs.ansible.com/ansible/latest/user_guide/playbooks_checkmode.html#showing-differences-with-diff) support
+ * only python>=3.5 on agent required
 
 ## Usage
 install collection
