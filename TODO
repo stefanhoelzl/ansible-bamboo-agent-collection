@@ -1,4 +1,2 @@
 * FEATURE: make authentication optional
-* FEATURE: support diff mode
-* BUG: return values are outdated
 * DOC: possible to generate ansible doc?
