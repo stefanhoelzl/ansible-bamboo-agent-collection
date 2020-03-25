@@ -1,5 +1,6 @@
 import time
 import ssl
+import yaml
 from functools import partial
 from unittest import TestCase
 from unittest.mock import Mock, call
@@ -8,6 +9,8 @@ from contextlib import contextmanager
 from tests import RequestTestCase, IpAddress, BambooHome, ActionResponse
 from . import templates
 from plugins.modules.configuration import (
+    DOCUMENTATION,
+    ArgumentSpec,
     BambooAgentController,
     BambooAgent,
     State,
@@ -22,6 +25,23 @@ from plugins.modules.configuration import (
     AssignmentNotFound,
     AgentBusy,
 )
+
+
+class TestDocumentation(TestCase):
+    def test_spec_matches_docstring(self):
+        def clean(spec):
+            spec.pop("description", None)
+            for key, value in spec.items():
+                if isinstance(value, dict):
+                    clean(value)
+                elif key == "type":
+                    spec[key] = {
+                        t.__name__: t for t in [str, int, bool, float, dict, list]
+                    }[value]
+
+        doc_spec = yaml.load(DOCUMENTATION)["options"]
+        clean(doc_spec)
+        self.assertEqual(doc_spec, ArgumentSpec)
 
 
 class TestRetry(TestCase):

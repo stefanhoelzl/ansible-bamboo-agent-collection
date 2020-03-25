@@ -35,11 +35,38 @@ options:
         - path to bamboo-agent-home
         type: str
         required: true
+    name:
+        type: str
+    enabled:
+        type: bool
+    assignments:
+        description:
+        - agent assignments
+        type: list
+        suboptions:
+            type:
+                description:
+                - assignment type
+                type: str
+                required: true
+                choices:
+                - plan
+                - project
+            key:
+                description:
+                - entity key for assignment
+                type: str
+                required: true
+    block_while_busy:
+        description:
+        - Waits while the agent is busy before finishing the task.
+        - Recommended to enable the agent when using this option, otherwise it cannot be ensured that the agent picks up another job.
+        type: bool
     credentials:
         description:
         - bamboo server authentication information
-        required: false
         type: dict
+        required: true
         suboptions:
             user:
                 description:
@@ -51,55 +78,20 @@ options:
                 - Password for authentication
                 type: str
                 required: true
-    name:
-        type: str
-        required: false
-    enabled:
-        type: bool
-        required: false
-    assignments:
-        description:
-        - agent assignments
-        required: false
-        type: list
-        suboptions:
-            type:
-                description:
-                - assignment type
-                required: true
-                type: str
-                choices:
-                - plan
-                - project
-            id:
-                description:
-                - entity id for assignment
-                required: true
-                type: int
-    block_while_busy:
-        description:
-        - Waits while the agent is busy before finishing the task.
-        - Recommended to enable the agent when using this option, otherwise it cannot be ensured that the agent picks up another job.
-        type: bool
-        default: False
     timings:
-        required: True
         type: dict
         suboptions:
             http_timeout:
                 description:
                 - timeout for http requests in seconds
-                required: false
                 type: float
                 default: 10
             authentication_timeout:
                 description:
                 - seconds after the authentication fails if the agent does not show up in Bamboo
-                required: false
                 type: float
                 default: 240
             busy_timeout:
-                required: false
                 type: float
             busy_polling_interval:
                 description:
@@ -201,17 +193,16 @@ from ansible.module_utils.basic import AnsibleModule
 ArgumentSpec = dict(
     host=dict(type=str, required=True),
     home=dict(type=str, required=True),
-    name=dict(type=str, required=False),
-    enabled=dict(type=bool, required=False),
-    block_while_busy=dict(type=bool, required=False),
+    name=dict(type=str),
+    enabled=dict(type=bool),
     assignments=dict(
         type=list,
-        required=False,
         suboptions=dict(
             type=dict(type=str, required=True, choices=["plan", "project"]),
             key=dict(type=str, required=True),
         ),
     ),
+    block_while_busy=dict(type=bool),
     credentials=dict(
         type=dict,
         required=True,
@@ -221,12 +212,11 @@ ArgumentSpec = dict(
     ),
     timings=dict(
         type=dict,
-        required=False,
         suboptions=dict(
-            http_timeout=dict(type=float, required=False, default=10),
-            authentication_timeout=dict(type=float, required=False, default=240.0),
-            busy_timeout=dict(type=float, required=False),
-            busy_polling_interval=dict(type=float, default=60.0, required=False),
+            http_timeout=dict(type=float, default=10),
+            authentication_timeout=dict(type=float, default=240.0),
+            busy_timeout=dict(type=float),
+            busy_polling_interval=dict(type=float, default=60.0),
         ),
     ),
 )
