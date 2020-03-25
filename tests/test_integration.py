@@ -251,6 +251,23 @@ class TestAgentDisable(BambooAgentIntegrationTest):
     ExpectedResult = dict(id=1234, enabled=False)
 
 
+class TestAgentDelete(BambooAgentIntegrationTest):
+    Arguments = dict(deleted=True)
+    Home = BambooHome().config(aid=1234)
+    ExpectChange = True
+    ExpectedRequests = [
+        templates.Pending.request(),
+        templates.Agents.request(),
+        templates.Delete.request(agent_id=1234),
+    ]
+    Responses = [
+        ActionResponse([]),
+        templates.Agents.response([dict(id=1234, enabled=True)]),
+        templates.Delete.response(),
+    ]
+    ExpectedResult = dict(id=1234, deleted=True)
+
+
 class TestSetAgentName(BambooAgentIntegrationTest):
     Arguments = dict(name="new-name")
     Home = BambooHome().config(aid=1234)
@@ -353,6 +370,7 @@ class TestDiff(BambooAgentIntegrationTest):
                 {
                     "assignments": {},
                     "authenticated": true,
+                    "deleted": false,
                     "info": {
                         "active": true,
                         "busy": false,
@@ -368,6 +386,7 @@ class TestDiff(BambooAgentIntegrationTest):
                 {
                     "assignments": {},
                     "authenticated": true,
+                    "deleted": false,
                     "info": {
                         "active": true,
                         "busy": false,

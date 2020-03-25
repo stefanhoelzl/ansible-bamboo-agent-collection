@@ -126,3 +126,15 @@ class SearchAssignment:
                 ],
             )
         )
+
+
+class Delete:
+    @staticmethod
+    def request(agent_id: int) -> Request:
+        return Request(
+            f"/admin/agent/removeAgent.action?agentId={agent_id}", method=Method.Post
+        )
+
+    @staticmethod
+    def response(status_code: int = 200) -> Response:
+        return ActionResponse(status_code=status_code)

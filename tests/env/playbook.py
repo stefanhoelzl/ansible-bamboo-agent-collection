@@ -104,6 +104,7 @@ class Registration(AcceptanceTest):
         self.assertTrue(content["enabled"])
         self.assertFalse(content["busy"])
         self.assertTrue(content["active"])
+        self.assertFalse(content["deleted"])
 
     def check_query(self, content):
         self.assertEqual(len(content), 1)
@@ -158,6 +159,7 @@ class NoChange(AcceptanceTest):
         self.assertEqual(len(content["assignments"]), self.AssignmentCount)
         self.assertEqual(content["name"], "new-name")
         self.assertFalse(content["enabled"])
+        self.assertFalse(content["deleted"])
 
     def check_query(self, content):
         self.assertEqual(len(content), 1)
@@ -172,19 +174,31 @@ class NoArguments(NoChange):
 
 class DiffAndCheckMode(AcceptanceTest):
     CheckMode = True
-    Arguments = dict(name="old-name", enabled=True, assignments=list())
+    Arguments = dict(name="old-name", enabled=True, assignments=list(), deleted=True)
     Query = "http://bamboo-server:8085/rest/api/latest/agent/"
 
     def check_value(self, content):
         self.assertEqual(content["name"], "old-name")
         self.assertEqual(content["assignments"], dict())
         self.assertTrue(content["enabled"])
+        self.assertTrue(content["deleted"])
         self.assertIn("diff", content)
 
     def check_query(self, content):
         self.assertEqual(len(content), 1)
         self.assertEqual(content[0]["name"], "new-name")
         self.assertFalse(content[0]["enabled"])
+
+
+class Delete(AcceptanceTest):
+    Arguments = dict(deleted=True)
+    Query = "http://bamboo-server:8085/rest/api/latest/agent/"
+
+    def check_value(self, content):
+        self.assertTrue(content["deleted"])
+
+    def check_query(self, content):
+        self.assertEqual(len(content), 0)
 
 
 class TestAnsibleOutput(unittest.TestCase):

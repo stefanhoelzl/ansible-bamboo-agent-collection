@@ -195,6 +195,10 @@ class TestState(TestCase):
         state.set("key", "value")
         self.assertEqual(state["key"], "value")
 
+    def test_init(self):
+        state = State(key="value")
+        self.assertEqual(state["key"], "value")
+
     def test_get_default_dict(self):
         state = State()
         self.assertEqual(state["key"], dict())
@@ -592,6 +596,14 @@ class TestBambooAgent(RequestTestCase):
             AssignmentNotFound,
             partial(agent.resolve_assignments, [dict(type="project", key="AA")],),
         )
+
+    def test_delete(self):
+        rh = MockRequestHandler(responses=[templates.Delete.response()])
+        with BambooHome().config(aid=1234).temp() as home:
+            agent = make_bamboo_agent(home=home, request_handler=rh)
+            agent.delete()
+        self.assert_requests(rh.requests, templates.Delete.request(agent_id=1234))
+        self.assertTrue(agent.state["deleted"])
 
 
 def make_bamboo_agent_controller(

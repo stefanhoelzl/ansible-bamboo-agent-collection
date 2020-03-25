@@ -62,6 +62,12 @@ options:
         - Waits while the agent is busy before finishing the task.
         - Recommended to enable the agent when using this option, otherwise it cannot be ensured that the agent picks up another job.
         type: bool
+    deleted:
+        description:
+        - Deletes the agent from bamboo server if true.
+        - If block_while_busy is true, the agent gets deleted when idle again.
+        type: bool
+        default: False
     credentials:
         description:
         - bamboo server authentication information
@@ -136,11 +142,12 @@ EXAMPLES = """
     credentials:
         user: "user"
         password: "{{ secret_password }}"
-- name: block while agent is busy
+- name: block while agent is busy and then delete
   stefanhoelzl.bamboo_agent.configuration:
     host: https://bamboo-host
     home: /home/bamboo/bamboo-agent-home/
     block_while_busy: true
+    deleted: true
     timings:
         busy_timoeut: 3600
         busy_polling_interval: 120
@@ -203,6 +210,7 @@ ArgumentSpec = dict(
         ),
     ),
     block_while_busy=dict(type=bool),
+    deleted=dict(type=bool, default=False),
     credentials=dict(
         type=dict,
         required=True,
@@ -368,9 +376,9 @@ def retry(query, timeout: Optional[float], interval: float, msg: Optional[str] =
 
 
 class State:
-    def __init__(self):
-        self.current = dict()
-        self.initial = dict()
+    def __init__(self, **initial):
+        self.initial = initial
+        self.current = deepcopy(self.initial)
 
     @property
     def changed(self):
@@ -410,7 +418,7 @@ class BambooAgent:
     ):
         self.home = home
         self.check_mode = check_mode
-        self.state = State()
+        self.state = State(deleted=False)
         self.request_handler = request_handler(
             host=host,
             auth=(credentials["user"], credentials["password"]),
@@ -528,6 +536,16 @@ class BambooAgent:
                 method=Method.Post,
             ),
             state_update=lambda state: state["info"].__setitem__("enabled", True),
+            allow_redirect=True,
+        )
+
+    def delete(self):
+        self.change(
+            Request(
+                f"/admin/agent/removeAgent.action?agentId={self.id()}",
+                method=Method.Post,
+            ),
+            state_update=lambda state: state.set("deleted", True),
             allow_redirect=True,
         )
 
@@ -670,6 +688,7 @@ def main():
     module = AnsibleModule(argument_spec=ArgumentSpec, supports_check_mode=True)
 
     enabled = module.params.pop("enabled")
+    delete = module.params.pop("deleted")
     name = module.params.pop("name")
     assignments = module.params.pop("assignments")
     should_block_while_busy = module.params.pop("block_while_busy")
@@ -694,6 +713,8 @@ def main():
         controller.update_assignments(controller.agent.resolve_assignments(assignments))
         if should_block_while_busy:
             controller.block_while_busy()
+        if delete:
+            controller.agent.delete()
     except (BambooAgentError, urlrequest.URLError) as error:
         module.fail_json(msg=str(error))
 
@@ -701,6 +722,7 @@ def main():
         changed=controller.agent.state.changed,
         authenticated=controller.agent.state["authenticated"],
         assignments=controller.agent.state["assignments"],
+        deleted=controller.agent.state["deleted"],
         diff=dict(
             before=json.dumps(controller.agent.state.initial, indent=4, sort_keys=True),
             after=json.dumps(controller.agent.state.current, indent=4, sort_keys=True),
