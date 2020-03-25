@@ -181,6 +181,20 @@ enabled:
 active:
     type: bool
     returned: success
+deleted:
+    type: bool
+    returned: success
+assignments:
+    type: dict
+    suboptions:
+        id:
+            type: int
+        type:
+            type: str
+            choices:
+            - PLAN
+            - PROJECT
+    returned: success
 """
 
 import re

@@ -10,6 +10,8 @@ from tests import RequestTestCase, IpAddress, BambooHome, ActionResponse
 from . import templates
 from plugins.modules.configuration import (
     DOCUMENTATION,
+    EXAMPLES,
+    RETURN,
     ArgumentSpec,
     BambooAgentController,
     BambooAgent,
@@ -28,6 +30,12 @@ from plugins.modules.configuration import (
 
 
 class TestDocumentation(TestCase):
+    def test_return_is_valid_yaml(self):
+        yaml.load(RETURN)
+
+    def test_examples_are_valid_yaml(self):
+        yaml.load(EXAMPLES)
+
     def test_spec_matches_docstring(self):
         def clean(spec):
             spec.pop("description", None)
