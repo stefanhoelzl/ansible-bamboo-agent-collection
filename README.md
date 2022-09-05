@@ -13,7 +13,7 @@ using the [REST API](https://docs.atlassian.com/atlassian-bamboo/REST/6.9.2).
  * wait until agent is not busy
  * [check mode](https://docs.ansible.com/ansible/latest/user_guide/playbooks_checkmode.html) support
  * [diff](https://docs.ansible.com/ansible/latest/user_guide/playbooks_checkmode.html#showing-differences-with-diff) support
- * only python>=3.5 on agent required
+ * only python>=3.6 on agent required
 
 ## Usage
 install collection
