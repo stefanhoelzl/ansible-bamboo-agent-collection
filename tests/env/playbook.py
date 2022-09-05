@@ -12,7 +12,7 @@ class AcceptanceTest(unittest.TestCase):
 
     IsTask = True
     CheckMode = False
-    Arguments = dict()f
+    Arguments = dict()
     Query = None
     Changed = True
 
