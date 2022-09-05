@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         python: ['3.6', '3.7', '3.8', '3.9', '3.10']
-        ansible: ['~=2', '~=3', '~=4', '~=5', '~=6']
+        ansible: ['2', '3', '4', '5', '6']
     steps:
       - name: checkout
         uses: actions/checkout@v1
@@ -46,7 +46,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: install ansible
         shell: bash
-        run: pip install ansible==${{ matrix.ansible }}
+        run: pip install ansible~=${{ matrix.ansible }}
       - name: unit and integration tests
         shell: bash
         run: python tests
