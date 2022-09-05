@@ -1,2 +1,2 @@
-ansible==4.2.0
-black==19.10b0
+ansible==6.3.0
+black==22.8.0
