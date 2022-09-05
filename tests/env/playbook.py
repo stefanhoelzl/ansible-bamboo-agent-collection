@@ -12,7 +12,7 @@ class AcceptanceTest(unittest.TestCase):
 
     IsTask = True
     CheckMode = False
-    Arguments = dict()
+    Arguments = dict()f
     Query = None
     Changed = True
 
@@ -60,7 +60,7 @@ class AcceptanceTest(unittest.TestCase):
             yield dict(
                 name=f"save {cls.__name__} value",
                 copy=dict(
-                    content=f"{{{{ {cls.__name__} | to_json }}}}",
+                    content=f"{{{{ {cls.__name__} | tojson }}}}",
                     dest=f"/results/{cls.__name__}.value.json",
                 ),
             )
